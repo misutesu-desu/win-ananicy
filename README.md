@@ -36,6 +36,7 @@ WinAnanicy is a lightweight, high-performance, open-source background process op
 *   **Dynamic I/O Prioritization**: Implements dynamic I/O scheduling class modifications for optimized disk access.
 *   **CPU Core Affinity Control**: Restricts processes to specific logical processor cores to prevent resource starvation or core thrashing.
 *   **Modern Control Panel**: A Fluent Dark Mode C# WPF desktop GUI designed for Windows 11.
+*   **Quick Presets Dropdown**: Supports 1-click optimization profiles in the GUI to instantly configure rules for games, overlays, dynamic web applications, and strict background throttles.
 *   **Configuration Hot-Reloading**: Automatically detects edits to `rules.json` and updates the active rules list in real-time.
 
 ---
@@ -119,6 +120,17 @@ Simply launch `WinAnanicyGui.exe`.
 *   **No Service Mode**: If the service is not installed or running, you can still edit rules in the GUI, which will automatically update the config file.
 *   **Service Mode**: Start the service to apply changes automatically in the background. The GUI will detect and display the service's current running status.
 *   **Elevation**: Management of Windows services (Start/Stop/Restart) requires administrator permissions. If the app is launched as a standard user, click the **Restart as Administrator** button in the status bar to elevate.
+
+#### Quick Presets Feature
+The "Configure Rule" overlay in the GUI contains an interactive **Quick Presets** dropdown allowing users to select pre-configured profiles:
+*   **Game / High Performance**: Optimizes CPU & I/O priority (`High`) and utilizes all logical cores for heavy gaming.
+*   **Helper / Tool / Overlay**: Perfect for utility applications (e.g. Lossless Scaling, OBS, Discord overlay), giving them a slight priority boost (`Above Normal` CPU, `Normal` I/O) without throttling the main game.
+*   **Web / Chat (Dynamic)**: Designed for web browsers (Chrome, Thorium) and chat apps. Throttles priority to `Below Normal` and restricts CPU affinity to the last 4 cores *only* when the process is minimized/in the background (enabled via `background_only`).
+*   **Strict Saver / Background**: Heavily throttles background launchers and updaters to `Below Normal` CPU, `Low` I/O, and isolates them to the last 2 logical cores to completely free up primary gaming cores.
+
+#### Intelligent Safeguards
+*   **Smart Core-Count Scaling**: Presets targeting the last 4 or 2 logical cores automatically scale down safely on low-spec CPUs (e.g. if a system has fewer than 4 or 2 cores, it checks all available cores instead of throwing exceptions).
+*   **Manual Override Detection**: If you modify any checkbox or priority dropdown manually after selecting a preset, the preset selector automatically resets to `-- Select a Preset (Optional) --` to clearly indicate custom overrides.
 
 ---
 

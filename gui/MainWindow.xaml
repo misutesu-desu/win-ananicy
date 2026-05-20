@@ -531,9 +531,19 @@
                             <TextBlock Text="Process File Name" FontSize="11" Foreground="#888888" Margin="0,0,0,6"/>
                             <TextBox x:Name="ModalProcessNameTextBox" Margin="0,0,0,16"/>
 
+                            <!-- Quick Presets -->
+                            <TextBlock Text="Quick Presets" FontSize="11" Foreground="#888888" Margin="0,0,0,6"/>
+                            <ComboBox x:Name="PresetComboBox" SelectedIndex="0" Margin="0,0,0,16" SelectionChanged="PresetComboBox_SelectionChanged">
+                                <ComboBoxItem Content="-- Select a Preset (Optional) --"/>
+                                <ComboBoxItem Content="Game / High Performance"/>
+                                <ComboBoxItem Content="Helper / Tool / Overlay"/>
+                                <ComboBoxItem Content="Web / Chat (Dynamic)"/>
+                                <ComboBoxItem Content="Strict Saver / Background"/>
+                            </ComboBox>
+
                             <!-- CPU Priority Dropdown -->
                             <TextBlock Text="CPU Priority Class" FontSize="11" Foreground="#888888" Margin="0,0,0,6"/>
-                            <ComboBox x:Name="CpuPriorityComboBox" SelectedIndex="2" Margin="0,0,0,16">
+                            <ComboBox x:Name="CpuPriorityComboBox" SelectedIndex="2" Margin="0,0,0,16" SelectionChanged="CpuPriorityComboBox_SelectionChanged">
                                 <ComboBoxItem Content="Idle"/>
                                 <ComboBoxItem Content="Below Normal"/>
                                 <ComboBoxItem Content="Normal"/>
@@ -544,7 +554,7 @@
 
                             <!-- I/O Priority Dropdown -->
                             <TextBlock Text="I/O Priority" FontSize="11" Foreground="#888888" Margin="0,0,0,6"/>
-                            <ComboBox x:Name="IoPriorityComboBox" SelectedIndex="1" Margin="0,0,0,16">
+                            <ComboBox x:Name="IoPriorityComboBox" SelectedIndex="1" Margin="0,0,0,16" SelectionChanged="IoPriorityComboBox_SelectionChanged">
                                 <ComboBoxItem Content="Very Low"/>
                                 <ComboBoxItem Content="Low"/>
                                 <ComboBoxItem Content="Normal"/>
@@ -564,7 +574,7 @@
                             </Border>
 
                             <!-- Background Only Toggle -->
-                            <CheckBox x:Name="BackgroundOnlyCheckBox" Content="Apply settings only when process is in background" Margin="0,4,0,4"/>
+                            <CheckBox x:Name="BackgroundOnlyCheckBox" Content="Apply settings only when process is in background" Margin="0,4,0,4" Checked="BackgroundOnlyCheckBox_Changed" Unchecked="BackgroundOnlyCheckBox_Changed"/>
                         </StackPanel>
                     </ScrollViewer>
 

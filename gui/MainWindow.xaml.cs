@@ -36,6 +36,7 @@ namespace WinAnanicyGui
         private DispatcherTimer _refreshTimer = new();
         private bool _isAdmin = false;
         private ProcessRule? _currentEditingRule = null;
+        private bool _isApplyingPreset = false;
 
         public MainWindow()
         {
@@ -133,6 +134,8 @@ namespace WinAnanicyGui
                     Tag = i,
                     Margin = new Thickness(0, 0, 16, 8)
                 };
+                cb.Checked += CoreCheckbox_Changed;
+                cb.Unchecked += CoreCheckbox_Changed;
                 AffinityCoresPanel.Children.Add(cb);
             }
         }
@@ -262,31 +265,34 @@ namespace WinAnanicyGui
             ModalProcessNameTextBox.Text = processName;
             ModalProcessNameTextBox.IsReadOnly = existingRule != null; // Lock name if editing existing rule
 
-            if (existingRule != null)
+            _isApplyingPreset = true;
+            try
             {
-                ModalTitleTextBlock.Text = $"Edit Rule: {processName}";
-                
-                // Select CPU Priority
-                SelectComboBoxItem(CpuPriorityComboBox, existingRule.CpuPriority ?? "Normal");
-                
-                // Select I/O Priority
-                SelectComboBoxItem(IoPriorityComboBox, existingRule.IoPriority ?? "Normal");
-                
-                // Check Cores
-                SetCoreCheckboxes(existingRule.CpuAffinity);
-                
-                // Background Only
-                BackgroundOnlyCheckBox.IsChecked = existingRule.BackgroundOnly ?? false;
+                if (PresetComboBox != null)
+                {
+                    PresetComboBox.SelectedIndex = 0;
+                }
+
+                if (existingRule != null)
+                {
+                    ModalTitleTextBlock.Text = $"Edit Rule: {processName}";
+                    SelectComboBoxItem(CpuPriorityComboBox, existingRule.CpuPriority ?? "Normal");
+                    SelectComboBoxItem(IoPriorityComboBox, existingRule.IoPriority ?? "Normal");
+                    SetCoreCheckboxes(existingRule.CpuAffinity);
+                    BackgroundOnlyCheckBox.IsChecked = existingRule.BackgroundOnly ?? false;
+                }
+                else
+                {
+                    ModalTitleTextBlock.Text = $"Configure Rule: {processName}";
+                    CpuPriorityComboBox.SelectedIndex = 2; // Normal
+                    IoPriorityComboBox.SelectedIndex = 2;  // Normal
+                    SetCoreCheckboxes(null);               // Check all by default
+                    BackgroundOnlyCheckBox.IsChecked = false;
+                }
             }
-            else
+            finally
             {
-                ModalTitleTextBlock.Text = $"Configure Rule: {processName}";
-                
-                // Default options
-                CpuPriorityComboBox.SelectedIndex = 2; // Normal
-                IoPriorityComboBox.SelectedIndex = 2;  // Normal
-                SetCoreCheckboxes(null);               // Check all by default
-                BackgroundOnlyCheckBox.IsChecked = false;
+                _isApplyingPreset = false;
             }
 
             ModalOverlay.Visibility = Visibility.Visible;
@@ -647,6 +653,116 @@ namespace WinAnanicyGui
             {
                 // User cancelled UAC prompt
             }
+        }
+
+        #endregion
+
+        #region Rule Preset Handlers
+
+        private void PresetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isApplyingPreset) return;
+            if (PresetComboBox == null || PresetComboBox.SelectedIndex <= 0) return;
+
+            _isApplyingPreset = true;
+            try
+            {
+                int coreCount = Environment.ProcessorCount;
+                switch (PresetComboBox.SelectedIndex)
+                {
+                    case 1: // Game / High Performance
+                        SelectComboBoxItem(CpuPriorityComboBox, "High");
+                        SelectComboBoxItem(IoPriorityComboBox, "High");
+                        BackgroundOnlyCheckBox.IsChecked = false;
+                        foreach (var child in AffinityCoresPanel.Children)
+                        {
+                            if (child is CheckBox cb) cb.IsChecked = true;
+                        }
+                        break;
+
+                    case 2: // Helper / Tool / Overlay
+                        SelectComboBoxItem(CpuPriorityComboBox, "Above Normal");
+                        SelectComboBoxItem(IoPriorityComboBox, "Normal");
+                        BackgroundOnlyCheckBox.IsChecked = false;
+                        foreach (var child in AffinityCoresPanel.Children)
+                        {
+                            if (child is CheckBox cb) cb.IsChecked = true;
+                        }
+                        break;
+
+                    case 3: // Web / Chat (Dynamic)
+                        SelectComboBoxItem(CpuPriorityComboBox, "Below Normal");
+                        SelectComboBoxItem(IoPriorityComboBox, "Normal");
+                        BackgroundOnlyCheckBox.IsChecked = true;
+                        for (int i = 0; i < coreCount; i++)
+                        {
+                            if (AffinityCoresPanel.Children[i] is CheckBox cb)
+                            {
+                                cb.IsChecked = (coreCount <= 4) || (i >= coreCount - 4);
+                            }
+                        }
+                        break;
+
+                    case 4: // Strict Saver / Background
+                        SelectComboBoxItem(CpuPriorityComboBox, "Below Normal");
+                        SelectComboBoxItem(IoPriorityComboBox, "Low");
+                        BackgroundOnlyCheckBox.IsChecked = false;
+                        for (int i = 0; i < coreCount; i++)
+                        {
+                            if (AffinityCoresPanel.Children[i] is CheckBox cb)
+                            {
+                                cb.IsChecked = (coreCount <= 2) || (i >= coreCount - 2);
+                            }
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error applying preset: {ex.Message}");
+            }
+            finally
+            {
+                _isApplyingPreset = false;
+            }
+        }
+
+        private void OnManualControlChanged()
+        {
+            if (_isApplyingPreset) return;
+            
+            if (PresetComboBox != null)
+            {
+                _isApplyingPreset = true;
+                try
+                {
+                    PresetComboBox.SelectedIndex = 0;
+                }
+                finally
+                {
+                    _isApplyingPreset = false;
+                }
+            }
+        }
+
+        private void CpuPriorityComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            OnManualControlChanged();
+        }
+
+        private void IoPriorityComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            OnManualControlChanged();
+        }
+
+        private void BackgroundOnlyCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            OnManualControlChanged();
+        }
+
+        private void CoreCheckbox_Changed(object sender, RoutedEventArgs e)
+        {
+            OnManualControlChanged();
         }
 
         #endregion
