@@ -1,0 +1,73 @@
+# ==========================================
+# WinAnanicy Git Ignore Rules
+# ==========================================
+
+# --- Compilation & Build Folders ---
+build/
+out/
+bin/
+obj/
+x64/
+x86/
+ARM/
+ARM64/
+Debug/
+Release/
+
+# --- CMake Artifacts ---
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+/CMakeCache.txt
+/CMakeFiles/
+/CMakeScripts/
+/_deps/
+
+# --- Visual Studio Project & Workspace Files ---
+.vs/
+*.user
+*.suo
+*.sln.docstates
+*.opensdf
+*.sdf
+*.aps
+*.VC.db
+*.ipch
+*.db
+*.opendb
+
+# --- Rider / JetBrains IDE Files ---
+.idea/
+*.sln.iml
+
+# --- Visual Studio Code Workspace Files ---
+.vscode/
+
+# --- NuGet Packages ---
+*.nupkg
+**/packages/
+project.assets.json
+*.nuget.g.props
+*.nuget.g.targets
+
+# --- Program Outputs, Logs & Temporary Files ---
+*.log
+*.tmp
+*.bak
+*.exe.recipe
+*.ilk
+*.pdb
+*.obj
+*.iobj
+*.ipdb
+*.tlog
+*.lastbuildstate
+.DS_Store
+memory-bank/ 
+.clinerules 
+
+memory-bank/
+.clinerules

@@ -1,0 +1,21 @@
+[
+  {
+    "process_name": "cmd.exe",
+    "cpu_priority": "Above Normal",
+    "io_priority": "Low",
+    "cpu_affinity": "0,1",
+    "background_only": true
+  },
+  {
+    "process_name": "chrome.exe",
+    "cpu_priority": "Below Normal",
+    "io_priority": "Low",
+    "background_only": true
+  },
+  {
+    "process_name": "cyberpunk2077.exe",
+    "cpu_priority": "High",
+    "io_priority": "High",
+    "background_only": false
+  }
+]
