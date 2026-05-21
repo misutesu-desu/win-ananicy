@@ -37,6 +37,8 @@ WinAnanicy is a lightweight, high-performance, open-source background process op
 *   **CPU Core Affinity Control**: Restricts processes to specific logical processor cores to prevent resource starvation or core thrashing.
 *   **Modern Control Panel**: A Fluent Dark Mode C# WPF desktop GUI designed for Windows 11.
 *   **Quick Presets Dropdown**: Supports 1-click optimization profiles in the GUI to instantly configure rules for games, overlays, dynamic web applications, and strict background throttles.
+*   **Visual Optimization Badges**: Displays a green "Optimized" badge next to processes with active rules, turning the action button from a default blue "Optimize" to a distinct green-bordered "Edit Rule".
+*   **Preset Auto-Detection**: When editing a rule, the GUI automatically maps properties (priorities, affinity, and background settings) back to the matching preset.
 *   **Configuration Hot-Reloading**: Automatically detects edits to `rules.json` and updates the active rules list in real-time.
 
 ---
@@ -129,6 +131,8 @@ The "Configure Rule" overlay in the GUI contains an interactive **Quick Presets*
 *   **Strict Saver / Background**: Heavily throttles background launchers and updaters to `Below Normal` CPU, `Low` I/O, and isolates them to the last 2 logical cores to completely free up primary gaming cores.
 
 #### Intelligent Safeguards
+*   **Active Rules Indicators**: The process grid automatically matches running processes against your `rules.json` configuration, showing a green **Optimized** badge next to the process name and transitioning the action button from a blue "Optimize" style to a green-accented "Edit Rule" style.
+*   **Preset Auto-Detector**: When opening the configuration dialog for an existing rule, the GUI automatically compares CPU priority, I/O priority, background modes, and core affinity mappings (handling low-core boundaries dynamically). If a perfect match is found, the **Quick Presets** dropdown auto-selects that profile, allowing you to instantly see and tweak preset profiles.
 *   **Smart Core-Count Scaling**: Presets targeting the last 4 or 2 logical cores automatically scale down safely on low-spec CPUs (e.g. if a system has fewer than 4 or 2 cores, it checks all available cores instead of throwing exceptions).
 *   **Manual Override Detection**: If you modify any checkbox or priority dropdown manually after selecting a preset, the preset selector automatically resets to `-- Select a Preset (Optional) --` to clearly indicate custom overrides.
 

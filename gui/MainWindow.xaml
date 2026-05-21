@@ -181,6 +181,61 @@
             </Setter>
         </Style>
 
+        <!-- Dynamic Style for action button in Processes DataGrid -->
+        <Style x:Key="ProcessActionButton" TargetType="{x:Type Button}">
+            <Setter Property="Background" Value="#0078D4"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="border" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" CornerRadius="3" SnapsToDevicePixels="true">
+                            <ContentPresenter x:Name="contentPresenter" Focusable="False" HorizontalAlignment="Center" Margin="{TemplateBinding Padding}" RecognizesAccessKey="True" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="true">
+                                <Setter TargetName="border" Property="Background" Value="#1086E2"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="true">
+                                <Setter TargetName="border" Property="Background" Value="#005A9E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsOptimized}" Value="True">
+                    <Setter Property="Background" Value="#202020"/>
+                    <Setter Property="Foreground" Value="#81C784"/>
+                    <Setter Property="BorderBrush" Value="#2E7D32"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="{x:Type Button}">
+                                <Border x:Name="border" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" CornerRadius="3" SnapsToDevicePixels="true">
+                                    <ContentPresenter x:Name="contentPresenter" Focusable="False" HorizontalAlignment="Center" Margin="{TemplateBinding Padding}" RecognizesAccessKey="True" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="true">
+                                        <Setter TargetName="border" Property="Background" Value="#1B3E20"/>
+                                        <Setter TargetName="border" Property="BorderBrush" Value="#388E3C"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="true">
+                                        <Setter TargetName="border" Property="Background" Value="#0D2311"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- Modern ComboBox Style -->
         <Style TargetType="{x:Type ComboBox}">
             <Setter Property="Background" Value="#1E1E1E"/>
@@ -434,13 +489,24 @@
                     <!-- Data Grid List -->
                     <DataGrid x:Name="ProcessesDataGrid" Grid.Row="1" MouseDoubleClick="ProcessesDataGrid_MouseDoubleClick">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Process Name" Binding="{Binding Name}" Width="2*"/>
-                            <DataGridTextColumn Header="PID" Binding="{Binding Id}" Width="1*"/>
-                            <DataGridTextColumn Header="Window Title" Binding="{Binding Title}" Width="4*"/>
-                            <DataGridTemplateColumn Header="Action" Width="100">
+                            <DataGridTemplateColumn Header="Process Name" Width="2*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Button Content="Optimize" Style="{StaticResource ActionButton}" Click="OptimizeButton_Click"/>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Foreground="#FFFFFF"/>
+                                            <Border Background="#1B3E20" BorderBrush="#2E7D32" BorderThickness="1" CornerRadius="3" Margin="8,0,0,0" Padding="5,2" Visibility="{Binding OptimizationBadgeVisibility}">
+                                                <TextBlock Text="Optimized" FontSize="10" Foreground="#81C784" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="PID" Binding="{Binding Id}" Width="1*"/>
+                            <DataGridTextColumn Header="Window Title" Binding="{Binding Title}" Width="4*"/>
+                            <DataGridTemplateColumn Header="Action" Width="110">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding ActionText}" Style="{StaticResource ProcessActionButton}" Click="OptimizeButton_Click"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>

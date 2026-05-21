@@ -22,6 +22,10 @@ namespace WinAnanicyGui
         public string Name { get; set; } = string.Empty;
         public int Id { get; set; }
         public string Title { get; set; } = string.Empty;
+        public bool IsOptimized { get; set; }
+        
+        public string ActionText => IsOptimized ? "Edit Rule" : "Optimize";
+        public Visibility OptimizationBadgeVisibility => IsOptimized ? Visibility.Visible : Visibility.Collapsed;
     }
 
     public partial class MainWindow : Window
@@ -191,6 +195,12 @@ namespace WinAnanicyGui
         {
             string filterText = SearchTextBox.Text.Trim();
             
+            // Capture a snapshot of the optimized process names to avoid cross-thread issues
+            var optimizedProcesses = new HashSet<string>(
+                _rules.Select(r => r.ProcessName), 
+                StringComparer.OrdinalIgnoreCase
+            );
+            
             var list = await Task.Run(() =>
             {
                 var items = new List<ProcessItem>();
@@ -202,14 +212,15 @@ namespace WinAnanicyGui
                     {
                         if (p.Id == 0 || string.IsNullOrEmpty(p.ProcessName)) continue;
                         
-                        string procName = p.ProcessName.ToLower();
-                        if (!procName.EndsWith(".exe")) procName += ".exe";
+                        string procName = p.ProcessName;
+                        if (!procName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) procName += ".exe";
 
                         items.Add(new ProcessItem
                         {
                             Id = p.Id,
                             Name = procName,
-                            Title = p.MainWindowTitle
+                            Title = p.MainWindowTitle,
+                            IsOptimized = optimizedProcesses.Contains(procName)
                         });
                     }
                     catch
@@ -218,10 +229,11 @@ namespace WinAnanicyGui
                     }
                 }
 
-                // Sort processes: windows with titles first, then alphabetically by name
+                // Sort processes: optimized processes first, then windows with titles, then names
                 return items
-                    .OrderByDescending(x => !string.IsNullOrEmpty(x.Title))
-                    .ThenBy(x => x.Name)
+                    .OrderByDescending(x => x.IsOptimized)
+                    .ThenByDescending(x => !string.IsNullOrEmpty(x.Title))
+                    .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
                     .ToList();
             });
 
@@ -280,6 +292,9 @@ namespace WinAnanicyGui
                     SelectComboBoxItem(IoPriorityComboBox, existingRule.IoPriority ?? "Normal");
                     SetCoreCheckboxes(existingRule.CpuAffinity);
                     BackgroundOnlyCheckBox.IsChecked = existingRule.BackgroundOnly ?? false;
+
+                    // Automatically detect matching preset
+                    AutoDetectPreset();
                 }
                 else
                 {
@@ -768,6 +783,103 @@ namespace WinAnanicyGui
         #endregion
 
         #region Helpers
+
+        private void AutoDetectPreset()
+        {
+            if (CpuPriorityComboBox == null || IoPriorityComboBox == null || 
+                BackgroundOnlyCheckBox == null || AffinityCoresPanel == null || 
+                PresetComboBox == null)
+            {
+                return;
+            }
+
+            string cpuPriority = (CpuPriorityComboBox.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Normal";
+            string ioPriority = (IoPriorityComboBox.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Normal";
+            bool backgroundOnly = BackgroundOnlyCheckBox.IsChecked ?? false;
+
+            int coreCount = Environment.ProcessorCount;
+            bool[] checkedCores = new bool[coreCount];
+            int checkedCount = 0;
+
+            for (int i = 0; i < coreCount; i++)
+            {
+                if (i < AffinityCoresPanel.Children.Count && AffinityCoresPanel.Children[i] is CheckBox cb)
+                {
+                    checkedCores[i] = cb.IsChecked ?? false;
+                    if (checkedCores[i])
+                    {
+                        checkedCount++;
+                    }
+                }
+            }
+
+            // Preset 1: Game / High Performance
+            // CPU: High, IO: High, Background Only: false, Affinity: All Cores
+            if (cpuPriority.Equals("High", StringComparison.OrdinalIgnoreCase) &&
+                ioPriority.Equals("High", StringComparison.OrdinalIgnoreCase) &&
+                !backgroundOnly &&
+                checkedCount == coreCount)
+            {
+                PresetComboBox.SelectedIndex = 1;
+                return;
+            }
+
+            // Preset 2: Helper / Tool / Overlay
+            // CPU: Above Normal, IO: Normal, Background Only: false, Affinity: All Cores
+            if (cpuPriority.Equals("Above Normal", StringComparison.OrdinalIgnoreCase) &&
+                ioPriority.Equals("Normal", StringComparison.OrdinalIgnoreCase) &&
+                !backgroundOnly &&
+                checkedCount == coreCount)
+            {
+                PresetComboBox.SelectedIndex = 2;
+                return;
+            }
+
+            // Preset 3: Web / Chat (Dynamic)
+            // CPU: Below Normal, IO: Normal, Background Only: true, Affinity: Last 4 cores (or all cores if total cores <= 4)
+            bool isWebChatAffinity = true;
+            for (int i = 0; i < coreCount; i++)
+            {
+                bool expected = (coreCount <= 4) || (i >= coreCount - 4);
+                if (checkedCores[i] != expected)
+                {
+                    isWebChatAffinity = false;
+                    break;
+                }
+            }
+            if (cpuPriority.Equals("Below Normal", StringComparison.OrdinalIgnoreCase) &&
+                ioPriority.Equals("Normal", StringComparison.OrdinalIgnoreCase) &&
+                backgroundOnly &&
+                isWebChatAffinity)
+            {
+                PresetComboBox.SelectedIndex = 3;
+                return;
+            }
+
+            // Preset 4: Strict Saver / Background
+            // CPU: Below Normal, IO: Low, Background Only: false, Affinity: Last 2 cores (or all cores if total cores <= 2)
+            bool isStrictSaverAffinity = true;
+            for (int i = 0; i < coreCount; i++)
+            {
+                bool expected = (coreCount <= 2) || (i >= coreCount - 2);
+                if (checkedCores[i] != expected)
+                {
+                    isStrictSaverAffinity = false;
+                    break;
+                }
+            }
+            if (cpuPriority.Equals("Below Normal", StringComparison.OrdinalIgnoreCase) &&
+                ioPriority.Equals("Low", StringComparison.OrdinalIgnoreCase) &&
+                !backgroundOnly &&
+                isStrictSaverAffinity)
+            {
+                PresetComboBox.SelectedIndex = 4;
+                return;
+            }
+
+            // No preset matches, set to Custom (index 0)
+            PresetComboBox.SelectedIndex = 0;
+        }
 
         private bool IsRunningAsAdmin()
         {
