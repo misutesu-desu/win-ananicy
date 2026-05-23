@@ -10,12 +10,49 @@
     "process_name": "chrome.exe",
     "cpu_priority": "Below Normal",
     "io_priority": "Low",
+    "cpu_affinity": null,
     "background_only": true
   },
   {
-    "process_name": "cyberpunk2077.exe",
+    "process_name": "losslessscaling.exe",
+    "cpu_priority": "Above Normal",
+    "io_priority": "Normal",
+    "cpu_affinity": null,
+    "background_only": null
+  },
+  {
+    "process_name": "thorium.exe",
+    "cpu_priority": "Below Normal",
+    "io_priority": "Normal",
+    "cpu_affinity": "12,13,14,15",
+    "background_only": true
+  },
+  {
+    "process_name": "hp.omen.omencommandcenter.exe",
+    "cpu_priority": "Above Normal",
+    "io_priority": "Normal",
+    "cpu_affinity": null,
+    "background_only": null
+  },
+  {
+    "process_name": "pragmata.exe",
     "cpu_priority": "High",
     "io_priority": "High",
-    "background_only": false
+    "cpu_affinity": null,
+    "background_only": null
+  },
+  {
+    "process_name": "StarRail.exe",
+    "cpu_priority": "High",
+    "io_priority": "High",
+    "cpu_affinity": null,
+    "background_only": null
+  },
+  {
+    "process_name": "RobloxPlayerBeta.exe",
+    "cpu_priority": "High",
+    "io_priority": "High",
+    "cpu_affinity": null,
+    "background_only": null
   }
 ]

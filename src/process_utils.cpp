@@ -4,6 +4,8 @@
 #include <vector>
 #include <algorithm>
 #include <memory>
+#include <psapi.h>
+#include <powrprof.h>
 
 namespace ProcessUtils {
 
@@ -266,6 +268,83 @@ bool SetIoPriority(DWORD pid, const std::string& ioPriorityStr) {
 
     Logger::Info("Applied I/O priority (" + ioPriorityStr + ") to PID " + std::to_string(pid));
     return true;
+}
+
+bool SetProcessEcoQoS(HANDLE hProcess, bool enable) {
+    PROCESS_POWER_THROTTLING_STATE PowerThrottling;
+    RtlZeroMemory(&PowerThrottling, sizeof(PowerThrottling));
+    PowerThrottling.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+
+    if (enable) {
+        PowerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+        PowerThrottling.StateMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+    } else {
+        PowerThrottling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
+        PowerThrottling.StateMask = 0;
+    }
+
+    if (!SetProcessInformation(hProcess, ProcessPowerThrottling, &PowerThrottling, sizeof(PowerThrottling))) {
+        Logger::Error("Failed to set EcoQoS/PowerThrottling. Error: " + std::to_string(GetLastError()));
+        return false;
+    }
+    return true;
+}
+
+bool TrimProcessMemory(HANDLE hProcess) {
+    if (!EmptyWorkingSet(hProcess)) {
+        return false;
+    }
+    return true;
+}
+
+bool LimitProcessCpuRate(HANDLE hProcess, DWORD limitPercentage) {
+    if (limitPercentage == 0 || limitPercentage >= 100) {
+        return false;
+    }
+
+    HANDLE hJob = CreateJobObjectW(nullptr, nullptr);
+    if (!hJob) {
+        Logger::Error("Failed to create job object for CPU limiting. Error: " + std::to_string(GetLastError()));
+        return false;
+    }
+
+    JOBOBJECT_CPU_RATE_CONTROL_INFORMATION cpuRateInfo;
+    RtlZeroMemory(&cpuRateInfo, sizeof(cpuRateInfo));
+    cpuRateInfo.ControlFlags = JOB_OBJECT_CPU_RATE_CONTROL_ENABLE | JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP;
+    cpuRateInfo.CpuRate = limitPercentage * 100;
+
+    if (!SetInformationJobObject(hJob, JobObjectCpuRateControlInformation, &cpuRateInfo, sizeof(cpuRateInfo))) {
+        Logger::Error("Failed to set Job Object CPU rate control information. Error: " + std::to_string(GetLastError()));
+        CloseHandle(hJob);
+        return false;
+    }
+
+    if (!AssignProcessToJobObject(hJob, hProcess)) {
+        DWORD err = GetLastError();
+        Logger::Warn("Failed to assign process to Job Object. Error: " + std::to_string(err));
+        CloseHandle(hJob);
+        return false;
+    }
+
+    CloseHandle(hJob);
+    return true;
+}
+
+bool SetActivePowerScheme(const GUID& schemeGuid) {
+    if (PowerSetActiveScheme(nullptr, &schemeGuid) != ERROR_SUCCESS) {
+        return false;
+    }
+    return true;
+}
+
+bool GetActivePowerScheme(GUID& schemeGuid) {
+    GUID* pScheme = nullptr;
+    if (PowerGetActiveScheme(nullptr, &pScheme) == ERROR_SUCCESS) {
+        schemeGuid = *pScheme;
+        LocalFree(pScheme);
+        return true;
+    }
+    return false;
 }
 
 } // namespace ProcessUtils

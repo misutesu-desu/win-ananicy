@@ -11,6 +11,9 @@ struct ProcessRule {
     std::optional<std::string> io_priority;  // "Very Low", "Low", "Normal", "High"
     std::optional<std::string> cpu_affinity; // e.g., "0,1,2,3"
     bool background_only = false;
+    bool eco_qos = false;
+    bool launcher = false;
+    int cpu_limit = 0;
 };
 
 class ConfigManager {

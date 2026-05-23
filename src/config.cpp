@@ -59,6 +59,15 @@ bool ConfigManager::Load() {
                 if (item.contains("background_only") && item["background_only"].is_boolean()) {
                     rule.background_only = item["background_only"].get<bool>();
                 }
+                if (item.contains("eco_qos") && item["eco_qos"].is_boolean()) {
+                    rule.eco_qos = item["eco_qos"].get<bool>();
+                }
+                if (item.contains("launcher") && item["launcher"].is_boolean()) {
+                    rule.launcher = item["launcher"].get<bool>();
+                }
+                if (item.contains("cpu_limit") && item["cpu_limit"].is_number_integer()) {
+                    rule.cpu_limit = item["cpu_limit"].get<int>();
+                }
 
                 newRules.push_back(std::move(rule));
             }

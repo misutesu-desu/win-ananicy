@@ -22,6 +22,15 @@ namespace WinAnanicyGui
         [JsonPropertyName("background_only")]
         public bool? BackgroundOnly { get; set; }
 
+        [JsonPropertyName("eco_qos")]
+        public bool? EcoQoS { get; set; }
+
+        [JsonPropertyName("launcher")]
+        public bool? Launcher { get; set; }
+
+        [JsonPropertyName("cpu_limit")]
+        public int? CpuLimit { get; set; }
+
         /// <summary>
         /// Clone helper to copy rules when editing
         /// </summary>
@@ -33,7 +42,10 @@ namespace WinAnanicyGui
                 CpuPriority = this.CpuPriority,
                 IoPriority = this.IoPriority,
                 CpuAffinity = this.CpuAffinity,
-                BackgroundOnly = this.BackgroundOnly
+                BackgroundOnly = this.BackgroundOnly,
+                EcoQoS = this.EcoQoS,
+                Launcher = this.Launcher,
+                CpuLimit = this.CpuLimit
             };
         }
     }

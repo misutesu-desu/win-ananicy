@@ -27,6 +27,13 @@ std::string WideToUtf8(const std::wstring& wstr) {
     return strTo;
 }
 
+// Case-insensitive string comparison helper
+bool EqualsIgnoreCase(std::string_view a, std::string_view b) {
+    return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char charA, char charB) {
+        return std::tolower(static_cast<unsigned char>(charA)) == std::tolower(static_cast<unsigned char>(charB));
+    });
+}
+
 // Retrieves the directory containing the current executable
 std::wstring GetExecutableDirectory() {
     wchar_t buffer[MAX_PATH];
@@ -51,6 +58,18 @@ void MainLoop(const std::filesystem::path& configPath) {
     ConfigManager config(configPath);
     if (!config.Load()) {
         Logger::Warn("Could not load initial rules.json. The tool will wait for rules.json updates.");
+    }
+
+    // Power scheme management variables
+    GUID originalPowerScheme;
+    bool hasOriginalPowerScheme = false;
+    bool isHighPerformanceActive = false;
+
+    if (ProcessUtils::GetActivePowerScheme(originalPowerScheme)) {
+        hasOriginalPowerScheme = true;
+        Logger::Info("Successfully cached active system power plan GUID.");
+    } else {
+        Logger::Error("Failed to query initial active power scheme.");
     }
 
     std::unordered_map<DWORD, ProcessState> trackedProcesses;
@@ -110,14 +129,34 @@ void MainLoop(const std::filesystem::path& configPath) {
                 if (rule.background_only) {
                     // Apply if rules haven't been applied yet, or if foreground focus transitioned
                     if (!state.rules_applied || state.is_foreground != nowForeground) {
+                        HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_SET_QUOTA | PROCESS_TERMINATE, FALSE, pid);
                         if (nowForeground) {
-                            Logger::Info("PID " + std::to_string(pid) + " (" + name + ") is in foreground. Restoring Normal CPU priority.");
+                            Logger::Info("PID " + std::to_string(pid) + " (" + name + ") is in foreground. Restoring Normal CPU priority and disabling EcoQoS.");
                             ProcessUtils::SetCpuPriority(pid, "Normal");
+                            if (hProcess) {
+                                if (ProcessUtils::SetProcessEcoQoS(hProcess, false)) {
+                                    Logger::Info("Disabled EcoQoS (Efficiency Mode) for PID " + std::to_string(pid) + " (" + name + ").");
+                                }
+                            }
                         } else {
                             Logger::Info("PID " + std::to_string(pid) + " (" + name + ") is in background. Adjusting priorities.");
                             if (rule.cpu_priority) ProcessUtils::SetCpuPriority(pid, *rule.cpu_priority);
                             if (rule.io_priority) ProcessUtils::SetIoPriority(pid, *rule.io_priority);
                             if (rule.cpu_affinity) ProcessUtils::SetCpuAffinity(pid, *rule.cpu_affinity);
+                            if (hProcess) {
+                                // Enable EcoQoS (either because background_only is active, or explicitly marked eco_qos)
+                                if (ProcessUtils::SetProcessEcoQoS(hProcess, true)) {
+                                    Logger::Info("Applied EcoQoS (Efficiency Mode) to background process PID " + std::to_string(pid) + " (" + name + ").");
+                                }
+                                if (rule.cpu_limit > 0 && rule.cpu_limit < 100) {
+                                    if (ProcessUtils::LimitProcessCpuRate(hProcess, rule.cpu_limit)) {
+                                        Logger::Info("Applied CPU rate limit (" + std::to_string(rule.cpu_limit) + "%) to background process PID " + std::to_string(pid) + " (" + name + ").");
+                                    }
+                                }
+                            }
+                        }
+                        if (hProcess) {
+                            CloseHandle(hProcess);
                         }
                         state.is_foreground = nowForeground;
                         state.rules_applied = true;
@@ -129,6 +168,21 @@ void MainLoop(const std::filesystem::path& configPath) {
                         if (rule.cpu_priority) ProcessUtils::SetCpuPriority(pid, *rule.cpu_priority);
                         if (rule.io_priority) ProcessUtils::SetIoPriority(pid, *rule.io_priority);
                         if (rule.cpu_affinity) ProcessUtils::SetCpuAffinity(pid, *rule.cpu_affinity);
+                        
+                        HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_SET_QUOTA | PROCESS_TERMINATE, FALSE, pid);
+                        if (hProcess) {
+                            if (rule.eco_qos) {
+                                if (ProcessUtils::SetProcessEcoQoS(hProcess, true)) {
+                                    Logger::Info("Applied EcoQoS (Efficiency Mode) to PID " + std::to_string(pid) + " (" + name + ").");
+                                }
+                            }
+                            if (rule.cpu_limit > 0 && rule.cpu_limit < 100) {
+                                if (ProcessUtils::LimitProcessCpuRate(hProcess, rule.cpu_limit)) {
+                                    Logger::Info("Applied CPU rate limit (" + std::to_string(rule.cpu_limit) + "%) to PID " + std::to_string(pid) + " (" + name + ").");
+                                }
+                            }
+                            CloseHandle(hProcess);
+                        }
                         state.rules_applied = true;
                     }
                 }
@@ -147,7 +201,81 @@ void MainLoop(const std::filesystem::path& configPath) {
             }
         }
 
+        // 5. Check if any game (High or Realtime priority) is currently running and active
+        bool anyHighPriorityActive = false;
+        for (const auto& [pid, state] : trackedProcesses) {
+            auto ruleOpt = config.FindRule(state.process_name);
+            if (ruleOpt.has_value()) {
+                const auto& rule = ruleOpt.value();
+                bool isGame = rule.cpu_priority && (EqualsIgnoreCase(*rule.cpu_priority, "High") || EqualsIgnoreCase(*rule.cpu_priority, "Realtime"));
+                if (isGame) {
+                    if (rule.background_only) {
+                        if (!state.is_foreground) {
+                            anyHighPriorityActive = true;
+                        }
+                    } else {
+                        anyHighPriorityActive = true;
+                    }
+                }
+            }
+        }
+
+        // Handle power scheme and launcher memory trimming transitions
+        if (anyHighPriorityActive && !isHighPerformanceActive) {
+            // e9a42b02-d5df-448d-aa00-03f14749eb61
+            const GUID GUID_ULTIMATE_PERFORMANCE = { 0xe9a42b02, 0xd5df, 0x448d, { 0xaa, 0x00, 0x03, 0xf1, 0x47, 0x49, 0xeb, 0x61 } };
+            // 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+            const GUID GUID_HIGH_PERFORMANCE = { 0x8c5e7fda, 0xe8bf, 0x4a96, { 0x9a, 0x85, 0xa6, 0xe2, 0x3a, 0x8c, 0x63, 0x5c } };
+
+            Logger::Info("Game session started (active high priority process detected).");
+            if (ProcessUtils::SetActivePowerScheme(GUID_ULTIMATE_PERFORMANCE)) {
+                Logger::Info("Switched active power plan to Ultimate Performance.");
+            } else if (ProcessUtils::SetActivePowerScheme(GUID_HIGH_PERFORMANCE)) {
+                Logger::Info("Ultimate Performance not available. Switched active power plan to High Performance.");
+            } else {
+                Logger::Error("Failed to set power plan to High or Ultimate Performance.");
+            }
+
+            // Trim launchers memory
+            Logger::Info("Trimming working sets of launcher processes...");
+            for (const auto& [pid, state] : trackedProcesses) {
+                auto ruleOpt = config.FindRule(state.process_name);
+                if (ruleOpt.has_value() && ruleOpt.value().launcher) {
+                    HANDLE hProcess = OpenProcess(PROCESS_SET_QUOTA | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+                    if (!hProcess) {
+                        hProcess = OpenProcess(PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION, FALSE, pid);
+                    }
+                    if (hProcess) {
+                        if (ProcessUtils::TrimProcessMemory(hProcess)) {
+                            Logger::Info("Trimmed working set memory for launcher process: " + state.process_name + " (PID " + std::to_string(pid) + ")");
+                        } else {
+                            Logger::Warn("Failed to trim working set memory for launcher: " + state.process_name + " (PID " + std::to_string(pid) + ")");
+                        }
+                        CloseHandle(hProcess);
+                    }
+                }
+            }
+
+            isHighPerformanceActive = true;
+        } else if (!anyHighPriorityActive && isHighPerformanceActive) {
+            Logger::Info("Game session ended (no active high priority processes).");
+            if (hasOriginalPowerScheme) {
+                if (ProcessUtils::SetActivePowerScheme(originalPowerScheme)) {
+                    Logger::Info("Restored system's original power plan.");
+                } else {
+                    Logger::Error("Failed to restore original power plan.");
+                }
+            }
+            isHighPerformanceActive = false;
+        }
+
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
+
+    // Restore power plan scheme on exit
+    if (isHighPerformanceActive && hasOriginalPowerScheme) {
+        ProcessUtils::SetActivePowerScheme(originalPowerScheme);
+        Logger::Info("Daemon shutting down. Restored original power plan.");
     }
 
     Logger::Info("WinAnanicy core engine stopped.");

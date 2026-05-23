@@ -530,6 +530,9 @@
                             <DataGridTextColumn Header="I/O Priority" Binding="{Binding IoPriority}" Width="1.2*"/>
                             <DataGridTextColumn Header="Cores (Affinity)" Binding="{Binding CpuAffinity}" Width="1.5*"/>
                             <DataGridTextColumn Header="Background Only" Binding="{Binding BackgroundOnly}" Width="1.2*"/>
+                            <DataGridTextColumn Header="EcoQoS" Binding="{Binding EcoQoS}" Width="1*"/>
+                            <DataGridTextColumn Header="Launcher" Binding="{Binding Launcher}" Width="1*"/>
+                            <DataGridTextColumn Header="CPU Limit" Binding="{Binding CpuLimit}" Width="1*"/>
                             <DataGridTemplateColumn Header="Actions" Width="140">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -641,6 +644,26 @@
 
                             <!-- Background Only Toggle -->
                             <CheckBox x:Name="BackgroundOnlyCheckBox" Content="Apply settings only when process is in background" Margin="0,4,0,4" Checked="BackgroundOnlyCheckBox_Changed" Unchecked="BackgroundOnlyCheckBox_Changed"/>
+
+                            <!-- EcoQoS Toggle -->
+                            <CheckBox x:Name="EcoQosCheckBox" Content="Enable EcoQoS (Efficiency Mode / E-Core Lock)" Margin="0,10,0,4" Checked="EcoQosCheckBox_Changed" Unchecked="EcoQosCheckBox_Changed"/>
+
+                            <!-- Launcher Toggle -->
+                            <CheckBox x:Name="LauncherCheckBox" Content="Is Heavy Launcher (Trim working set memory on game launch)" Margin="0,4,0,10" Checked="LauncherCheckBox_Changed" Unchecked="LauncherCheckBox_Changed"/>
+
+                            <!-- CPU Limit Slider and Value -->
+                            <StackPanel Margin="0,6,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="CPU Limit Cap (%)" FontSize="11" Foreground="#888888" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="CpuLimitValueTextBlock" Grid.Column="1" Text="100%" FontSize="11" Foreground="#F3F3F3" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </Grid>
+                                <Slider x:Name="CpuLimitSlider" Minimum="0" Maximum="100" Value="100" TickFrequency="1" IsSnapToTickEnabled="True" Margin="0,6,0,0" ValueChanged="CpuLimitSlider_ValueChanged"/>
+                                <TextBlock Text="Set to 0 or 100 to disable CPU limiting." FontSize="10" Foreground="#666666" Margin="0,4,0,0"/>
+                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
 

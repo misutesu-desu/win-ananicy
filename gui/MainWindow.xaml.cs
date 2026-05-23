@@ -292,6 +292,9 @@ namespace WinAnanicyGui
                     SelectComboBoxItem(IoPriorityComboBox, existingRule.IoPriority ?? "Normal");
                     SetCoreCheckboxes(existingRule.CpuAffinity);
                     BackgroundOnlyCheckBox.IsChecked = existingRule.BackgroundOnly ?? false;
+                    EcoQosCheckBox.IsChecked = existingRule.EcoQoS ?? false;
+                    LauncherCheckBox.IsChecked = existingRule.Launcher ?? false;
+                    CpuLimitSlider.Value = (existingRule.CpuLimit == null || existingRule.CpuLimit == 0) ? 100 : existingRule.CpuLimit.Value;
 
                     // Automatically detect matching preset
                     AutoDetectPreset();
@@ -303,6 +306,9 @@ namespace WinAnanicyGui
                     IoPriorityComboBox.SelectedIndex = 2;  // Normal
                     SetCoreCheckboxes(null);               // Check all by default
                     BackgroundOnlyCheckBox.IsChecked = false;
+                    EcoQosCheckBox.IsChecked = false;
+                    LauncherCheckBox.IsChecked = false;
+                    CpuLimitSlider.Value = 100;
                 }
             }
             finally
@@ -429,6 +435,9 @@ namespace WinAnanicyGui
             string ioPriority = (IoPriorityComboBox.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Normal";
             string cpuAffinity = GetSelectedCoresString();
             bool backgroundOnly = BackgroundOnlyCheckBox.IsChecked ?? false;
+            bool ecoQos = EcoQosCheckBox.IsChecked ?? false;
+            bool launcher = LauncherCheckBox.IsChecked ?? false;
+            int cpuLimit = (int)CpuLimitSlider.Value;
 
             var rule = _currentEditingRule ?? new ProcessRule();
             rule.ProcessName = procName;
@@ -436,6 +445,9 @@ namespace WinAnanicyGui
             rule.IoPriority = ioPriority;
             rule.CpuAffinity = string.IsNullOrEmpty(cpuAffinity) ? null : cpuAffinity;
             rule.BackgroundOnly = backgroundOnly ? true : (bool?)null;
+            rule.EcoQoS = ecoQos ? true : (bool?)null;
+            rule.Launcher = launcher ? true : (bool?)null;
+            rule.CpuLimit = (cpuLimit > 0 && cpuLimit < 100) ? cpuLimit : (int?)null;
 
             if (_currentEditingRule == null)
             {
@@ -447,6 +459,9 @@ namespace WinAnanicyGui
                     existing.IoPriority = ioPriority;
                     existing.CpuAffinity = string.IsNullOrEmpty(cpuAffinity) ? null : cpuAffinity;
                     existing.BackgroundOnly = backgroundOnly ? true : (bool?)null;
+                    existing.EcoQoS = ecoQos ? true : (bool?)null;
+                    existing.Launcher = launcher ? true : (bool?)null;
+                    existing.CpuLimit = (cpuLimit > 0 && cpuLimit < 100) ? cpuLimit : (int?)null;
                 }
                 else
                 {
@@ -689,6 +704,9 @@ namespace WinAnanicyGui
                         SelectComboBoxItem(CpuPriorityComboBox, "High");
                         SelectComboBoxItem(IoPriorityComboBox, "High");
                         BackgroundOnlyCheckBox.IsChecked = false;
+                        EcoQosCheckBox.IsChecked = false;
+                        LauncherCheckBox.IsChecked = false;
+                        CpuLimitSlider.Value = 100;
                         foreach (var child in AffinityCoresPanel.Children)
                         {
                             if (child is CheckBox cb) cb.IsChecked = true;
@@ -699,6 +717,9 @@ namespace WinAnanicyGui
                         SelectComboBoxItem(CpuPriorityComboBox, "Above Normal");
                         SelectComboBoxItem(IoPriorityComboBox, "Normal");
                         BackgroundOnlyCheckBox.IsChecked = false;
+                        EcoQosCheckBox.IsChecked = false;
+                        LauncherCheckBox.IsChecked = false;
+                        CpuLimitSlider.Value = 100;
                         foreach (var child in AffinityCoresPanel.Children)
                         {
                             if (child is CheckBox cb) cb.IsChecked = true;
@@ -709,6 +730,9 @@ namespace WinAnanicyGui
                         SelectComboBoxItem(CpuPriorityComboBox, "Below Normal");
                         SelectComboBoxItem(IoPriorityComboBox, "Normal");
                         BackgroundOnlyCheckBox.IsChecked = true;
+                        EcoQosCheckBox.IsChecked = true;
+                        LauncherCheckBox.IsChecked = false;
+                        CpuLimitSlider.Value = 50;
                         for (int i = 0; i < coreCount; i++)
                         {
                             if (AffinityCoresPanel.Children[i] is CheckBox cb)
@@ -722,6 +746,9 @@ namespace WinAnanicyGui
                         SelectComboBoxItem(CpuPriorityComboBox, "Below Normal");
                         SelectComboBoxItem(IoPriorityComboBox, "Low");
                         BackgroundOnlyCheckBox.IsChecked = false;
+                        EcoQosCheckBox.IsChecked = true;
+                        LauncherCheckBox.IsChecked = false;
+                        CpuLimitSlider.Value = 15;
                         for (int i = 0; i < coreCount; i++)
                         {
                             if (AffinityCoresPanel.Children[i] is CheckBox cb)
@@ -780,6 +807,33 @@ namespace WinAnanicyGui
             OnManualControlChanged();
         }
 
+        private void EcoQosCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            OnManualControlChanged();
+        }
+
+        private void LauncherCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            OnManualControlChanged();
+        }
+
+        private void CpuLimitSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (CpuLimitValueTextBlock != null)
+            {
+                int val = (int)CpuLimitSlider.Value;
+                if (val == 0 || val == 100)
+                {
+                    CpuLimitValueTextBlock.Text = "Disabled";
+                }
+                else
+                {
+                    CpuLimitValueTextBlock.Text = $"{val}%";
+                }
+            }
+            OnManualControlChanged();
+        }
+
         #endregion
 
         #region Helpers
@@ -788,7 +842,8 @@ namespace WinAnanicyGui
         {
             if (CpuPriorityComboBox == null || IoPriorityComboBox == null || 
                 BackgroundOnlyCheckBox == null || AffinityCoresPanel == null || 
-                PresetComboBox == null)
+                PresetComboBox == null || EcoQosCheckBox == null || 
+                LauncherCheckBox == null || CpuLimitSlider == null)
             {
                 return;
             }
@@ -796,6 +851,9 @@ namespace WinAnanicyGui
             string cpuPriority = (CpuPriorityComboBox.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Normal";
             string ioPriority = (IoPriorityComboBox.SelectedItem as ComboBoxItem)?.Content.ToString() ?? "Normal";
             bool backgroundOnly = BackgroundOnlyCheckBox.IsChecked ?? false;
+            bool ecoQos = EcoQosCheckBox.IsChecked ?? false;
+            bool launcher = LauncherCheckBox.IsChecked ?? false;
+            int cpuLimit = (int)CpuLimitSlider.Value;
 
             int coreCount = Environment.ProcessorCount;
             bool[] checkedCores = new bool[coreCount];
@@ -814,10 +872,12 @@ namespace WinAnanicyGui
             }
 
             // Preset 1: Game / High Performance
-            // CPU: High, IO: High, Background Only: false, Affinity: All Cores
             if (cpuPriority.Equals("High", StringComparison.OrdinalIgnoreCase) &&
                 ioPriority.Equals("High", StringComparison.OrdinalIgnoreCase) &&
                 !backgroundOnly &&
+                !ecoQos &&
+                !launcher &&
+                (cpuLimit == 0 || cpuLimit == 100) &&
                 checkedCount == coreCount)
             {
                 PresetComboBox.SelectedIndex = 1;
@@ -825,10 +885,12 @@ namespace WinAnanicyGui
             }
 
             // Preset 2: Helper / Tool / Overlay
-            // CPU: Above Normal, IO: Normal, Background Only: false, Affinity: All Cores
             if (cpuPriority.Equals("Above Normal", StringComparison.OrdinalIgnoreCase) &&
                 ioPriority.Equals("Normal", StringComparison.OrdinalIgnoreCase) &&
                 !backgroundOnly &&
+                !ecoQos &&
+                !launcher &&
+                (cpuLimit == 0 || cpuLimit == 100) &&
                 checkedCount == coreCount)
             {
                 PresetComboBox.SelectedIndex = 2;
@@ -836,7 +898,6 @@ namespace WinAnanicyGui
             }
 
             // Preset 3: Web / Chat (Dynamic)
-            // CPU: Below Normal, IO: Normal, Background Only: true, Affinity: Last 4 cores (or all cores if total cores <= 4)
             bool isWebChatAffinity = true;
             for (int i = 0; i < coreCount; i++)
             {
@@ -850,6 +911,9 @@ namespace WinAnanicyGui
             if (cpuPriority.Equals("Below Normal", StringComparison.OrdinalIgnoreCase) &&
                 ioPriority.Equals("Normal", StringComparison.OrdinalIgnoreCase) &&
                 backgroundOnly &&
+                ecoQos &&
+                !launcher &&
+                cpuLimit == 50 &&
                 isWebChatAffinity)
             {
                 PresetComboBox.SelectedIndex = 3;
@@ -857,7 +921,6 @@ namespace WinAnanicyGui
             }
 
             // Preset 4: Strict Saver / Background
-            // CPU: Below Normal, IO: Low, Background Only: false, Affinity: Last 2 cores (or all cores if total cores <= 2)
             bool isStrictSaverAffinity = true;
             for (int i = 0; i < coreCount; i++)
             {
@@ -871,6 +934,9 @@ namespace WinAnanicyGui
             if (cpuPriority.Equals("Below Normal", StringComparison.OrdinalIgnoreCase) &&
                 ioPriority.Equals("Low", StringComparison.OrdinalIgnoreCase) &&
                 !backgroundOnly &&
+                ecoQos &&
+                !launcher &&
+                cpuLimit == 15 &&
                 isStrictSaverAffinity)
             {
                 PresetComboBox.SelectedIndex = 4;

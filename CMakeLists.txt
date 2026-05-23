@@ -3,6 +3,7 @@ project(WinAnanicy LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_compile_definitions(_WIN32_WINNT=0x0A00 WINVER=0x0A00)
 
 # Configure static linking for MSVC runtime library (MultiThreaded / MultiThreadedDebug)
 # This removes external DLL dependencies for the compiled executable.
@@ -35,5 +36,5 @@ target_link_libraries(win-ananicy PRIVATE nlohmann_json::nlohmann_json)
 if(MSVC)
     target_compile_options(win-ananicy PRIVATE /W4 /WX /permissive- /utf-8)
     # Link required libraries
-    target_link_libraries(win-ananicy PRIVATE Advapi32.lib User32.lib)
+    target_link_libraries(win-ananicy PRIVATE Advapi32.lib User32.lib PowrProf.lib Psapi.lib)
 endif()
