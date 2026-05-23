@@ -4,55 +4,79 @@
     "cpu_priority": "Above Normal",
     "io_priority": "Low",
     "cpu_affinity": "0,1",
-    "background_only": true
+    "background_only": true,
+    "eco_qos": null,
+    "launcher": null,
+    "cpu_limit": null
   },
   {
     "process_name": "chrome.exe",
     "cpu_priority": "Below Normal",
     "io_priority": "Low",
     "cpu_affinity": null,
-    "background_only": true
+    "background_only": true,
+    "eco_qos": null,
+    "launcher": null,
+    "cpu_limit": null
   },
   {
-    "process_name": "losslessscaling.exe",
+    "process_name": "LosslessScaling.exe",
     "cpu_priority": "Above Normal",
     "io_priority": "Normal",
     "cpu_affinity": null,
-    "background_only": null
+    "background_only": null,
+    "eco_qos": null,
+    "launcher": null,
+    "cpu_limit": null
   },
   {
     "process_name": "thorium.exe",
     "cpu_priority": "Below Normal",
     "io_priority": "Normal",
     "cpu_affinity": "12,13,14,15",
-    "background_only": true
+    "background_only": true,
+    "eco_qos": true,
+    "launcher": null,
+    "cpu_limit": 50
   },
   {
     "process_name": "hp.omen.omencommandcenter.exe",
     "cpu_priority": "Above Normal",
     "io_priority": "Normal",
     "cpu_affinity": null,
-    "background_only": null
+    "background_only": null,
+    "eco_qos": null,
+    "launcher": null,
+    "cpu_limit": null
   },
   {
     "process_name": "pragmata.exe",
     "cpu_priority": "High",
     "io_priority": "High",
     "cpu_affinity": null,
-    "background_only": null
+    "background_only": null,
+    "eco_qos": null,
+    "launcher": null,
+    "cpu_limit": null
   },
   {
     "process_name": "StarRail.exe",
     "cpu_priority": "High",
     "io_priority": "High",
     "cpu_affinity": null,
-    "background_only": null
+    "background_only": null,
+    "eco_qos": null,
+    "launcher": null,
+    "cpu_limit": null
   },
   {
     "process_name": "RobloxPlayerBeta.exe",
     "cpu_priority": "High",
     "io_priority": "High",
     "cpu_affinity": null,
-    "background_only": null
+    "background_only": null,
+    "eco_qos": null,
+    "launcher": null,
+    "cpu_limit": null
   }
 ]

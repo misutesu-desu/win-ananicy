@@ -32,4 +32,10 @@ bool SetActivePowerScheme(const GUID& schemeGuid);
 // Gets current active power scheme GUID
 bool GetActivePowerScheme(GUID& schemeGuid);
 
+// Programmatically creates and configures the custom "WinAnanicy Energy Optimizer" power plan.
+bool CreateAndSetupCustomPowerPlan();
+
+// Deletes the custom power plan from the Windows subsystem during cleanup/uninstall.
+bool DeleteCustomPowerPlan();
+
 } // namespace ProcessUtils

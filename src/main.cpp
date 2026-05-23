@@ -55,6 +55,9 @@ void MainLoop(const std::filesystem::path& configPath) {
     // Enable security privileges for modifying process priorities
     ProcessUtils::EnableRequiredPrivileges();
 
+    // Programmatically create/configure the WinAnanicy Energy Optimizer power plan
+    ProcessUtils::CreateAndSetupCustomPowerPlan();
+
     ConfigManager config(configPath);
     if (!config.Load()) {
         Logger::Warn("Could not load initial rules.json. The tool will wait for rules.json updates.");
@@ -222,18 +225,18 @@ void MainLoop(const std::filesystem::path& configPath) {
 
         // Handle power scheme and launcher memory trimming transitions
         if (anyHighPriorityActive && !isHighPerformanceActive) {
-            // e9a42b02-d5df-448d-aa00-03f14749eb61
-            const GUID GUID_ULTIMATE_PERFORMANCE = { 0xe9a42b02, 0xd5df, 0x448d, { 0xaa, 0x00, 0x03, 0xf1, 0x47, 0x49, 0xeb, 0x61 } };
+            // a7bc678d-d5df-448d-aa00-03f14749eb61
+            const GUID GUID_WINANANICY_OPTIMIZER = { 0xa7bc678d, 0xd5df, 0x448d, { 0xaa, 0x00, 0x03, 0xf1, 0x47, 0x49, 0xeb, 0x61 } };
             // 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
             const GUID GUID_HIGH_PERFORMANCE = { 0x8c5e7fda, 0xe8bf, 0x4a96, { 0x9a, 0x85, 0xa6, 0xe2, 0x3a, 0x8c, 0x63, 0x5c } };
 
             Logger::Info("Game session started (active high priority process detected).");
-            if (ProcessUtils::SetActivePowerScheme(GUID_ULTIMATE_PERFORMANCE)) {
-                Logger::Info("Switched active power plan to Ultimate Performance.");
+            if (ProcessUtils::SetActivePowerScheme(GUID_WINANANICY_OPTIMIZER)) {
+                Logger::Info("Switched active power plan to WinAnanicy Energy Optimizer.");
             } else if (ProcessUtils::SetActivePowerScheme(GUID_HIGH_PERFORMANCE)) {
-                Logger::Info("Ultimate Performance not available. Switched active power plan to High Performance.");
+                Logger::Info("WinAnanicy Energy Optimizer not available. Switched active power plan to High Performance.");
             } else {
-                Logger::Error("Failed to set power plan to High or Ultimate Performance.");
+                Logger::Error("Failed to set power plan to WinAnanicy Energy Optimizer or High Performance.");
             }
 
             // Trim launchers memory
@@ -357,6 +360,9 @@ bool UninstallService() {
         CloseServiceHandle(schSCManager);
         return false;
     }
+
+    // Delete the custom power plan from the Windows subsystem during cleanup/uninstall
+    ProcessUtils::DeleteCustomPowerPlan();
 
     std::wcout << L"WinAnanicy service uninstalled successfully." << std::endl;
     CloseServiceHandle(schService);

@@ -347,4 +347,146 @@ bool GetActivePowerScheme(GUID& schemeGuid) {
     return false;
 }
 
+bool CreateAndSetupCustomPowerPlan() {
+    const GUID GUID_BALANCED = { 0x381b4222, 0xf694, 0x41f0, { 0x96, 0x85, 0xff, 0x5b, 0xb2, 0x60, 0xdf, 0x2e } };
+    const GUID GUID_WINANANICY_OPTIMIZER = { 0xa7bc678d, 0xd5df, 0x448d, { 0xaa, 0x00, 0x03, 0xf1, 0x47, 0x49, 0xeb, 0x61 } };
+
+    // Subgroups
+    const GUID GUID_PROCESSOR_SUBGROUP = { 0x54533251, 0x82be, 0x4824, { 0x96, 0xc1, 0x47, 0xb6, 0x0b, 0x74, 0x0d, 0x00 } };
+    const GUID GUID_GRAPHICS_SUBGROUP_LOCAL = { 0x5fb4938d, 0x1ee8, 0x4b0f, { 0x9a, 0x3c, 0x50, 0x36, 0xb0, 0xab, 0x99, 0x5c } };
+    const GUID GUID_INTEL_GRAPHICS_SUBGROUP = { 0x44f3beca, 0xa7c0, 0x460e, { 0x9d, 0xf2, 0xbb, 0x8b, 0x99, 0xe0, 0xcb, 0xa6 } };
+
+    // Settings
+    const GUID GUID_PROCESSOR_MIN_STATE = { 0x893dee8e, 0x2bef, 0x41e0, { 0x89, 0xc6, 0xb5, 0x5d, 0x09, 0x29, 0x96, 0x4c } };
+    const GUID GUID_PROCESSOR_MAX_STATE = { 0xbc5038f7, 0x23e0, 0x4960, { 0x96, 0xda, 0x33, 0xab, 0xaf, 0x59, 0x35, 0xec } };
+    const GUID GUID_PROCESSOR_BOOST_MODE = { 0xbe337238, 0x0d82, 0x4146, { 0xa9, 0x60, 0x4f, 0x37, 0x49, 0xd4, 0x70, 0xc7 } };
+    const GUID GUID_GPU_PREFERENCE = { 0xdd848b2a, 0x8a5d, 0x4451, { 0x9a, 0xe2, 0x39, 0xcd, 0x41, 0x65, 0x8f, 0x6c } };
+    const GUID GUID_INTEL_GRAPHICS_PLAN = { 0x3619c3f2, 0xafb2, 0x4afc, { 0xb0, 0xe9, 0xe7, 0xfe, 0xf3, 0x72, 0xde, 0x36 } };
+
+    // 1. Check if the plan already exists (either by GUID or by name)
+    bool planExists = false;
+    
+    // Quick check by reading name from our target GUID
+    wchar_t quickCheckName[256] = {0};
+    DWORD quickCheckNameSize = sizeof(quickCheckName);
+    if (PowerReadFriendlyName(nullptr, &GUID_WINANANICY_OPTIMIZER, nullptr, nullptr, (PUCHAR)quickCheckName, &quickCheckNameSize) == ERROR_SUCCESS) {
+        planExists = true;
+        Logger::Info("WinAnanicy Energy Optimizer power plan already exists (verified by GUID).");
+    }
+
+    // Enumeration check (by name) just in case it was created with a different GUID but same name
+    if (!planExists) {
+        GUID enumeratedGuid;
+        DWORD bufferSize = sizeof(GUID);
+        DWORD index = 0;
+        while (PowerEnumerate(nullptr, nullptr, nullptr, ACCESS_SCHEME, index, (UCHAR*)&enumeratedGuid, &bufferSize) == ERROR_SUCCESS) {
+            wchar_t nameBuffer[256] = {0};
+            DWORD nameBufferSize = sizeof(nameBuffer);
+            if (PowerReadFriendlyName(nullptr, &enumeratedGuid, nullptr, nullptr, (PUCHAR)nameBuffer, &nameBufferSize) == ERROR_SUCCESS) {
+                std::wstring friendlyName(nameBuffer);
+                if (friendlyName == L"WinAnanicy Energy Optimizer") {
+                    planExists = true;
+                    Logger::Info("WinAnanicy Energy Optimizer power plan already exists (found by name during enumeration).");
+                    
+                    // If it has a different GUID, we should delete it first so we can recreate it with our desired GUID!
+                    if (enumeratedGuid != GUID_WINANANICY_OPTIMIZER) {
+                        Logger::Warn("Found power plan with matching name but different GUID. Deleting it to enforce custom GUID.");
+                        PowerDeleteScheme(nullptr, &enumeratedGuid);
+                        planExists = false;
+                    }
+                    break;
+                }
+            }
+            index++;
+            bufferSize = sizeof(GUID);
+        }
+    }
+
+    if (planExists) {
+        return true;
+    }
+
+    Logger::Info("Creating custom WinAnanicy Energy Optimizer power plan...");
+
+    // 2. Duplicate from Balanced scheme to our custom GUID
+    GUID customGuid = GUID_WINANANICY_OPTIMIZER;
+    GUID* pCustomGuid = &customGuid;
+    DWORD res = PowerDuplicateScheme(nullptr, &GUID_BALANCED, &pCustomGuid);
+    if (res != ERROR_SUCCESS) {
+        Logger::Error("Failed to duplicate Balanced power plan. Error: " + std::to_string(res));
+        return false;
+    }
+
+    // 3. Write friendly name and description
+    const wchar_t* friendlyName = L"WinAnanicy Energy Optimizer";
+    DWORD friendlyNameSize = static_cast<DWORD>((wcslen(friendlyName) + 1) * sizeof(wchar_t));
+    res = PowerWriteFriendlyName(nullptr, &GUID_WINANANICY_OPTIMIZER, nullptr, nullptr, (UCHAR*)friendlyName, friendlyNameSize);
+    if (res != ERROR_SUCCESS) {
+        Logger::Warn("Failed to write friendly name for custom power scheme. Error: " + std::to_string(res));
+    }
+
+    const wchar_t* description = L"Optimized performance and thermals for gaming, managed by WinAnanicy.";
+    DWORD descriptionSize = static_cast<DWORD>((wcslen(description) + 1) * sizeof(wchar_t));
+    res = PowerWriteDescription(nullptr, &GUID_WINANANICY_OPTIMIZER, nullptr, nullptr, (UCHAR*)description, descriptionSize);
+    if (res != ERROR_SUCCESS) {
+        Logger::Warn("Failed to write description for custom power scheme. Error: " + std::to_string(res));
+    }
+
+    // Helper to log and set settings
+    auto ApplyTweak = [&](const GUID& subgroup, const GUID& setting, DWORD val, std::string_view desc) {
+        DWORD acRes = PowerWriteACValueIndex(nullptr, &GUID_WINANANICY_OPTIMIZER, &subgroup, &setting, val);
+        DWORD dcRes = PowerWriteDCValueIndex(nullptr, &GUID_WINANANICY_OPTIMIZER, &subgroup, &setting, val);
+        if (acRes != ERROR_SUCCESS || dcRes != ERROR_SUCCESS) {
+            Logger::Debug("Skipped/Failed to apply power setting override (" + std::string(desc) + "). This setting may not be supported on this system hardware configuration.");
+        } else {
+            Logger::Info("Configured custom power plan: Set " + std::string(desc) + " to " + std::to_string(val));
+        }
+    };
+
+    // Apply specific tweaks:
+    // Minimum Processor State: 5% (AC and DC)
+    ApplyTweak(GUID_PROCESSOR_SUBGROUP, GUID_PROCESSOR_MIN_STATE, 5, "Minimum Processor State");
+
+    // Maximum Processor State: 100% (AC and DC)
+    ApplyTweak(GUID_PROCESSOR_SUBGROUP, GUID_PROCESSOR_MAX_STATE, 100, "Maximum Processor State");
+
+    // Processor Performance Boost Mode: 4 (Efficient Enabled)
+    ApplyTweak(GUID_PROCESSOR_SUBGROUP, GUID_PROCESSOR_BOOST_MODE, 4, "Processor Performance Boost Mode");
+
+    // GPU Preference: 2 (High Performance)
+    ApplyTweak(GUID_GRAPHICS_SUBGROUP_LOCAL, GUID_GPU_PREFERENCE, 2, "GPU Preference Policy");
+
+    // Intel Graphics Settings: 2 (Maximum Performance)
+    ApplyTweak(GUID_INTEL_GRAPHICS_SUBGROUP, GUID_INTEL_GRAPHICS_PLAN, 2, "Intel Graphics Power Plan");
+
+    // 4. Force reload by temporarily activating and restoring
+    GUID currentActiveScheme;
+    if (GetActivePowerScheme(currentActiveScheme)) {
+        if (SetActivePowerScheme(GUID_WINANANICY_OPTIMIZER)) {
+            SetActivePowerScheme(currentActiveScheme);
+            Logger::Info("Successfully initialized and saved tweaks for 'WinAnanicy Energy Optimizer' plan.");
+        } else {
+            Logger::Error("Failed to temporarily activate custom power plan to apply updates.");
+        }
+    }
+
+    return true;
+}
+
+bool DeleteCustomPowerPlan() {
+    const GUID GUID_WINANANICY_OPTIMIZER = { 0xa7bc678d, 0xd5df, 0x448d, { 0xaa, 0x00, 0x03, 0xf1, 0x47, 0x49, 0xeb, 0x61 } };
+    DWORD res = PowerDeleteScheme(nullptr, &GUID_WINANANICY_OPTIMIZER);
+    if (res == ERROR_SUCCESS) {
+        Logger::Info("Deleted custom WinAnanicy Energy Optimizer power plan.");
+        return true;
+    } else if (res == ERROR_FILE_NOT_FOUND) {
+        Logger::Debug("WinAnanicy Energy Optimizer power plan not found for deletion.");
+        return true;
+    }
+    Logger::Error("Failed to delete custom power plan. Error: " + std::to_string(res));
+    return false;
+}
+
 } // namespace ProcessUtils
+
+
