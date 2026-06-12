@@ -296,6 +296,24 @@ namespace WinAnanicyGui
                     LauncherCheckBox.IsChecked = existingRule.Launcher ?? false;
                     CpuLimitSlider.Value = (existingRule.CpuLimit == null || existingRule.CpuLimit == 0) ? 100 : existingRule.CpuLimit.Value;
 
+                    DisallowedCheckBox.IsChecked = existingRule.Disallowed ?? false;
+                    InstanceBalanceCheckBox.IsChecked = existingRule.InstanceBalance ?? false;
+
+                    SmartTrimCheckBox.IsChecked = existingRule.SmartTrimThresholdMb.HasValue;
+                    SmartTrimThresholdTextBox.Text = existingRule.SmartTrimThresholdMb?.ToString() ?? "500";
+                    SmartTrimConfigPanel.Visibility = (existingRule.SmartTrimThresholdMb.HasValue) ? Visibility.Visible : Visibility.Collapsed;
+
+                    CpuThrottleCheckBox.IsChecked = existingRule.CpuThrottleTriggerPct.HasValue;
+                    CpuThrottleTriggerTextBox.Text = existingRule.CpuThrottleTriggerPct?.ToString() ?? "80";
+                    CpuThrottleDurationTextBox.Text = existingRule.CpuThrottleDurationSecs?.ToString() ?? "5";
+                    CpuThrottleConfigPanel.Visibility = (existingRule.CpuThrottleTriggerPct.HasValue) ? Visibility.Visible : Visibility.Collapsed;
+
+                    KeepAliveCheckBox.IsChecked = existingRule.KeepAlive ?? false;
+                    ExecutablePathTextBox.Text = existingRule.ExecutablePath ?? string.Empty;
+                    KeepAliveConfigPanel.Visibility = (existingRule.KeepAlive ?? false) ? Visibility.Visible : Visibility.Collapsed;
+
+                    UpdateDisallowedState();
+
                     // Automatically detect matching preset
                     AutoDetectPreset();
                 }
@@ -309,6 +327,21 @@ namespace WinAnanicyGui
                     EcoQosCheckBox.IsChecked = false;
                     LauncherCheckBox.IsChecked = false;
                     CpuLimitSlider.Value = 100;
+
+                    DisallowedCheckBox.IsChecked = false;
+                    InstanceBalanceCheckBox.IsChecked = false;
+                    SmartTrimCheckBox.IsChecked = false;
+                    SmartTrimThresholdTextBox.Text = "500";
+                    SmartTrimConfigPanel.Visibility = Visibility.Collapsed;
+                    CpuThrottleCheckBox.IsChecked = false;
+                    CpuThrottleTriggerTextBox.Text = "80";
+                    CpuThrottleDurationTextBox.Text = "5";
+                    CpuThrottleConfigPanel.Visibility = Visibility.Collapsed;
+                    KeepAliveCheckBox.IsChecked = false;
+                    ExecutablePathTextBox.Text = string.Empty;
+                    KeepAliveConfigPanel.Visibility = Visibility.Collapsed;
+
+                    UpdateDisallowedState();
                 }
             }
             finally
@@ -439,15 +472,60 @@ namespace WinAnanicyGui
             bool launcher = LauncherCheckBox.IsChecked ?? false;
             int cpuLimit = (int)CpuLimitSlider.Value;
 
+            bool disallowed = DisallowedCheckBox.IsChecked ?? false;
+            bool instanceBalance = InstanceBalanceCheckBox.IsChecked ?? false;
+            bool smartTrim = SmartTrimCheckBox.IsChecked ?? false;
+            int? smartTrimThreshold = (smartTrim && int.TryParse(SmartTrimThresholdTextBox.Text, out int stVal)) ? stVal : (int?)null;
+            bool cpuThrottle = CpuThrottleCheckBox.IsChecked ?? false;
+            int? cpuThrottleTrigger = (cpuThrottle && int.TryParse(CpuThrottleTriggerTextBox.Text, out int ctTrigger)) ? ctTrigger : (int?)null;
+            int? cpuThrottleDuration = (cpuThrottle && int.TryParse(CpuThrottleDurationTextBox.Text, out int ctDuration)) ? ctDuration : (int?)null;
+            bool keepAlive = KeepAliveCheckBox.IsChecked ?? false;
+            string? execPath = string.IsNullOrEmpty(ExecutablePathTextBox.Text) ? null : ExecutablePathTextBox.Text;
+
+            // Validate Watchdog path if KeepAlive is checked
+            if (keepAlive && string.IsNullOrEmpty(execPath))
+            {
+                MessageBox.Show("Please specify the executable path for the Keep Alive watchdog.", "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             var rule = _currentEditingRule ?? new ProcessRule();
             rule.ProcessName = procName;
-            rule.CpuPriority = cpuPriority;
-            rule.IoPriority = ioPriority;
-            rule.CpuAffinity = string.IsNullOrEmpty(cpuAffinity) ? null : cpuAffinity;
-            rule.BackgroundOnly = backgroundOnly ? true : (bool?)null;
-            rule.EcoQoS = ecoQos ? true : (bool?)null;
-            rule.Launcher = launcher ? true : (bool?)null;
-            rule.CpuLimit = (cpuLimit > 0 && cpuLimit < 100) ? cpuLimit : (int?)null;
+
+            if (disallowed)
+            {
+                rule.CpuPriority = null;
+                rule.IoPriority = null;
+                rule.CpuAffinity = null;
+                rule.BackgroundOnly = null;
+                rule.EcoQoS = null;
+                rule.Launcher = null;
+                rule.CpuLimit = null;
+                rule.SmartTrimThresholdMb = null;
+                rule.CpuThrottleTriggerPct = null;
+                rule.CpuThrottleDurationSecs = null;
+                rule.InstanceBalance = null;
+                rule.KeepAlive = null;
+                rule.ExecutablePath = null;
+                rule.Disallowed = true;
+            }
+            else
+            {
+                rule.CpuPriority = cpuPriority;
+                rule.IoPriority = ioPriority;
+                rule.CpuAffinity = string.IsNullOrEmpty(cpuAffinity) ? null : cpuAffinity;
+                rule.BackgroundOnly = backgroundOnly ? true : (bool?)null;
+                rule.EcoQoS = ecoQos ? true : (bool?)null;
+                rule.Launcher = launcher ? true : (bool?)null;
+                rule.CpuLimit = (cpuLimit > 0 && cpuLimit < 100) ? cpuLimit : (int?)null;
+                rule.SmartTrimThresholdMb = smartTrimThreshold;
+                rule.CpuThrottleTriggerPct = cpuThrottleTrigger;
+                rule.CpuThrottleDurationSecs = cpuThrottleDuration;
+                rule.InstanceBalance = instanceBalance ? true : (bool?)null;
+                rule.KeepAlive = keepAlive ? true : (bool?)null;
+                rule.ExecutablePath = keepAlive ? execPath : null;
+                rule.Disallowed = null;
+            }
 
             if (_currentEditingRule == null)
             {
@@ -455,18 +533,9 @@ namespace WinAnanicyGui
                 var existing = _rules.FirstOrDefault(r => r.ProcessName.Equals(procName, StringComparison.OrdinalIgnoreCase));
                 if (existing != null)
                 {
-                    existing.CpuPriority = cpuPriority;
-                    existing.IoPriority = ioPriority;
-                    existing.CpuAffinity = string.IsNullOrEmpty(cpuAffinity) ? null : cpuAffinity;
-                    existing.BackgroundOnly = backgroundOnly ? true : (bool?)null;
-                    existing.EcoQoS = ecoQos ? true : (bool?)null;
-                    existing.Launcher = launcher ? true : (bool?)null;
-                    existing.CpuLimit = (cpuLimit > 0 && cpuLimit < 100) ? cpuLimit : (int?)null;
+                    _rules.Remove(existing);
                 }
-                else
-                {
-                    _rules.Add(rule);
-                }
+                _rules.Add(rule);
             }
 
             SaveRules();
@@ -815,6 +884,91 @@ namespace WinAnanicyGui
         private void LauncherCheckBox_Changed(object sender, RoutedEventArgs e)
         {
             OnManualControlChanged();
+        }
+
+        private void DisallowedCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            UpdateDisallowedState();
+            OnManualControlChanged();
+        }
+
+        private void UpdateDisallowedState()
+        {
+            bool isDisallowed = DisallowedCheckBox.IsChecked ?? false;
+            if (isDisallowed)
+            {
+                // Disable all other inputs
+                CpuPriorityComboBox.IsEnabled = false;
+                IoPriorityComboBox.IsEnabled = false;
+                AffinityCoresPanel.IsEnabled = false;
+                BackgroundOnlyCheckBox.IsEnabled = false;
+                EcoQosCheckBox.IsEnabled = false;
+                LauncherCheckBox.IsEnabled = false;
+                CpuLimitSlider.IsEnabled = false;
+                InstanceBalanceCheckBox.IsEnabled = false;
+                SmartTrimCheckBox.IsEnabled = false;
+                CpuThrottleCheckBox.IsEnabled = false;
+                KeepAliveCheckBox.IsEnabled = false;
+            }
+            else
+            {
+                // Re-enable
+                CpuPriorityComboBox.IsEnabled = true;
+                IoPriorityComboBox.IsEnabled = true;
+                AffinityCoresPanel.IsEnabled = true;
+                BackgroundOnlyCheckBox.IsEnabled = true;
+                EcoQosCheckBox.IsEnabled = true;
+                LauncherCheckBox.IsEnabled = true;
+                CpuLimitSlider.IsEnabled = true;
+                InstanceBalanceCheckBox.IsEnabled = true;
+                SmartTrimCheckBox.IsEnabled = true;
+                CpuThrottleCheckBox.IsEnabled = true;
+                KeepAliveCheckBox.IsEnabled = true;
+            }
+        }
+
+        private void InstanceBalanceCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            OnManualControlChanged();
+        }
+
+        private void SmartTrimCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            SmartTrimConfigPanel.Visibility = (SmartTrimCheckBox.IsChecked ?? false) ? Visibility.Visible : Visibility.Collapsed;
+            OnManualControlChanged();
+        }
+
+        private void CpuThrottleCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            CpuThrottleConfigPanel.Visibility = (CpuThrottleCheckBox.IsChecked ?? false) ? Visibility.Visible : Visibility.Collapsed;
+            OnManualControlChanged();
+        }
+
+        private void KeepAliveCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            KeepAliveConfigPanel.Visibility = (KeepAliveCheckBox.IsChecked ?? false) ? Visibility.Visible : Visibility.Collapsed;
+            OnManualControlChanged();
+        }
+
+        private void BrowseExecutableButton_Click(object sender, RoutedEventArgs e)
+        {
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "Executable Files (*.exe)|*.exe|All Files (*.*)|*.*",
+                Title = "Select Executable File"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                ExecutablePathTextBox.Text = openFileDialog.FileName;
+                OnManualControlChanged();
+            }
+        }
+
+        private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
+        {
+            var regex = new System.Text.RegularExpressions.Regex("[^0-9]+");
+            e.Handled = regex.IsMatch(e.Text);
         }
 
         private void CpuLimitSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

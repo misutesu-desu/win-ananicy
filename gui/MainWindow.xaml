@@ -533,6 +533,9 @@
                             <DataGridTextColumn Header="EcoQoS" Binding="{Binding EcoQoS}" Width="1*"/>
                             <DataGridTextColumn Header="Launcher" Binding="{Binding Launcher}" Width="1*"/>
                             <DataGridTextColumn Header="CPU Limit" Binding="{Binding CpuLimit}" Width="1*"/>
+                            <DataGridTextColumn Header="Disallowed" Binding="{Binding Disallowed}" Width="1*"/>
+                            <DataGridTextColumn Header="Keep Alive" Binding="{Binding KeepAlive}" Width="1*"/>
+                            <DataGridTextColumn Header="Balanced" Binding="{Binding InstanceBalance}" Width="1*"/>
                             <DataGridTemplateColumn Header="Actions" Width="140">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -650,6 +653,53 @@
 
                             <!-- Launcher Toggle -->
                             <CheckBox x:Name="LauncherCheckBox" Content="Is Heavy Launcher (Trim working set memory on game launch)" Margin="0,4,0,10" Checked="LauncherCheckBox_Changed" Unchecked="LauncherCheckBox_Changed"/>
+
+                            <!-- Disallowed Toggle -->
+                            <CheckBox x:Name="DisallowedCheckBox" Content="Disallowed (Instantly terminate on spawn)" Margin="0,4,0,4" Checked="DisallowedCheckBox_Changed" Unchecked="DisallowedCheckBox_Changed"/>
+
+                            <!-- Instance Balance Toggle -->
+                            <CheckBox x:Name="InstanceBalanceCheckBox" Content="Enable Instance Balancer (Distribute across CPU cores)" Margin="0,4,0,4" Checked="InstanceBalanceCheckBox_Changed" Unchecked="InstanceBalanceCheckBox_Changed"/>
+
+                            <!-- SmartTrim Configuration -->
+                            <CheckBox x:Name="SmartTrimCheckBox" Content="Enable SmartTrim (Intelligent Memory Reclaiming)" Margin="0,4,0,4" Checked="SmartTrimCheckBox_Changed" Unchecked="SmartTrimCheckBox_Changed"/>
+                            <StackPanel x:Name="SmartTrimConfigPanel" Margin="20,2,0,8" Visibility="Collapsed">
+                                <TextBlock Text="SmartTrim Threshold (MB)" FontSize="11" Foreground="#888888" Margin="0,0,0,4"/>
+                                <TextBox x:Name="SmartTrimThresholdTextBox" Text="500" Width="100" HorizontalAlignment="Left" PreviewTextInput="NumberValidationTextBox" Margin="0,0,0,8"/>
+                            </StackPanel>
+
+                            <!-- CPU Affinity Limiter Configuration -->
+                            <CheckBox x:Name="CpuThrottleCheckBox" Content="Enable CPU Affinity Limiter (Heavy-Load Mitigation)" Margin="0,4,0,4" Checked="CpuThrottleCheckBox_Changed" Unchecked="CpuThrottleCheckBox_Changed"/>
+                            <Grid x:Name="CpuThrottleConfigPanel" Margin="20,2,0,8" Visibility="Collapsed">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Column="0" Grid.Row="0" Text="Trigger Threshold (%)" FontSize="11" Foreground="#888888" Margin="0,0,0,4"/>
+                                <TextBox Grid.Column="0" Grid.Row="1" x:Name="CpuThrottleTriggerTextBox" Text="80" Width="100" HorizontalAlignment="Left" PreviewTextInput="NumberValidationTextBox" Margin="0,0,0,8"/>
+                                
+                                <TextBlock Grid.Column="2" Grid.Row="0" Text="Duration (Seconds)" FontSize="11" Foreground="#888888" Margin="0,0,0,4"/>
+                                <TextBox Grid.Column="2" Grid.Row="1" x:Name="CpuThrottleDurationTextBox" Text="5" Width="100" HorizontalAlignment="Left" PreviewTextInput="NumberValidationTextBox" Margin="0,0,0,8"/>
+                            </Grid>
+
+                            <!-- Watchdog / Keep Alive Configuration -->
+                            <CheckBox x:Name="KeepAliveCheckBox" Content="Enable Watchdog (Resurrect process if closed/crashed)" Margin="0,4,0,4" Checked="KeepAliveCheckBox_Changed" Unchecked="KeepAliveCheckBox_Changed"/>
+                            <StackPanel x:Name="KeepAliveConfigPanel" Margin="20,2,0,8" Visibility="Collapsed">
+                                <TextBlock Text="Executable Path" FontSize="11" Foreground="#888888" Margin="0,0,0,4"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" x:Name="ExecutablePathTextBox" IsReadOnly="True" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="2" x:Name="BrowseExecutableButton" Content="Browse..." Click="BrowseExecutableButton_Click" Height="28" Padding="12,0" VerticalAlignment="Center"/>
+                                </Grid>
+                            </StackPanel>
 
                             <!-- CPU Limit Slider and Value -->
                             <StackPanel Margin="0,6,0,10">

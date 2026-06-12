@@ -68,6 +68,27 @@ bool ConfigManager::Load() {
                 if (item.contains("cpu_limit") && item["cpu_limit"].is_number_integer()) {
                     rule.cpu_limit = item["cpu_limit"].get<int>();
                 }
+                if (item.contains("smart_trim_threshold_mb") && item["smart_trim_threshold_mb"].is_number_integer()) {
+                    rule.smart_trim_threshold_mb = item["smart_trim_threshold_mb"].get<int>();
+                }
+                if (item.contains("cpu_throttle_trigger_pct") && item["cpu_throttle_trigger_pct"].is_number_integer()) {
+                    rule.cpu_throttle_trigger_pct = item["cpu_throttle_trigger_pct"].get<int>();
+                }
+                if (item.contains("cpu_throttle_duration_secs") && item["cpu_throttle_duration_secs"].is_number_integer()) {
+                    rule.cpu_throttle_duration_secs = item["cpu_throttle_duration_secs"].get<int>();
+                }
+                if (item.contains("instance_balance") && item["instance_balance"].is_boolean()) {
+                    rule.instance_balance = item["instance_balance"].get<bool>();
+                }
+                if (item.contains("disallowed") && item["disallowed"].is_boolean()) {
+                    rule.disallowed = item["disallowed"].get<bool>();
+                }
+                if (item.contains("keep_alive") && item["keep_alive"].is_boolean()) {
+                    rule.keep_alive = item["keep_alive"].get<bool>();
+                }
+                if (item.contains("executable_path") && item["executable_path"].is_string()) {
+                    rule.executable_path = item["executable_path"].get<std::string>();
+                }
 
                 newRules.push_back(std::move(rule));
             }

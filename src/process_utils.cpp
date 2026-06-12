@@ -212,6 +212,41 @@ bool SetCpuAffinity(DWORD pid, const std::string& affinityStr) {
     return true;
 }
 
+bool SetCpuAffinityMask(DWORD pid, DWORD_PTR affinityMask) {
+    if (affinityMask == 0) {
+        Logger::Error("Affinity mask is 0 for PID " + std::to_string(pid) + ". Skipping.");
+        return false;
+    }
+
+    HANDLE hProcessRaw = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!hProcessRaw) {
+        Logger::Warn("Failed to open process (PID " + std::to_string(pid) + ") with PROCESS_SET_INFORMATION for CPU affinity mask.");
+        return false;
+    }
+    UniqueHandle hProcess(hProcessRaw);
+
+    DWORD_PTR processAffinity = 0;
+    DWORD_PTR systemAffinity = 0;
+    if (GetProcessAffinityMask(hProcess.get(), &processAffinity, &systemAffinity)) {
+        DWORD_PTR finalMask = affinityMask & systemAffinity;
+        if (finalMask == 0) {
+            finalMask = systemAffinity;
+        }
+
+        if (!SetProcessAffinityMask(hProcess.get(), finalMask)) {
+            Logger::Error("Failed to set CPU Affinity Mask for PID " + std::to_string(pid) + ". Error: " + std::to_string(GetLastError()));
+            return false;
+        }
+    } else {
+        if (!SetProcessAffinityMask(hProcess.get(), affinityMask)) {
+            Logger::Error("Failed to set CPU Affinity Mask for PID " + std::to_string(pid) + " (fallback). Error: " + std::to_string(GetLastError()));
+            return false;
+        }
+    }
+
+    return true;
+}
+
 typedef NTSTATUS(NTAPI* pfnNtSetInformationProcess)(
     HANDLE ProcessHandle,
     ULONG ProcessInformationClass, // 0x21 for ProcessIoPriority

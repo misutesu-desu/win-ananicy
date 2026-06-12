@@ -14,6 +14,15 @@ struct ProcessRule {
     bool eco_qos = false;
     bool launcher = false;
     int cpu_limit = 0;
+
+    // Advanced Process Lasso-style fields
+    std::optional<int> smart_trim_threshold_mb;
+    std::optional<int> cpu_throttle_trigger_pct;
+    std::optional<int> cpu_throttle_duration_secs;
+    bool instance_balance = false;
+    bool disallowed = false;
+    bool keep_alive = false;
+    std::string executable_path;
 };
 
 class ConfigManager {

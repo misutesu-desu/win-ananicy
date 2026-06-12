@@ -35,10 +35,15 @@ WinAnanicy is a lightweight, high-performance, open-source background process op
 *   **State-Based Optimization**: Rules are applied on process creation and foreground-to-background transitions, preventing constant polling and unnecessary kernel API calls.
 *   **Dynamic I/O Prioritization**: Implements dynamic I/O scheduling class modifications for optimized disk access.
 *   **CPU Core Affinity Control**: Restricts processes to specific logical processor cores to prevent resource starvation or core thrashing.
+*   **SmartTrim (Intelligent Memory Reclaiming)**: Automatically purges the working set memory of background processes once they exceed a threshold, forcing Windows to page out or compress bloated RAM.
+*   **CPU Affinity Limiter (Heavy-Load Mitigation)**: Dynamically restricts affinity of background processes thrashing the CPU to the last logical cores to prevent system-wide micro-stuttering, restoring original affinity once CPU load drops.
+*   **Instance Balancer (Multi-Process Load Distribution)**: Cyclically distributes multiple active instances of the same executable (e.g. browser sub-processes, rendering workers) across logical processor cores to prevent core stacking.
+*   **Blacklist / Disallowed Processes**: Instantly terminates disallowed/blacklisted executables or telemetry tasks the moment they spawn.
+*   **Watchdog / Keep Alive**: Automatically restarts critical processes if they exit or crash, with a built-in 10-second cooldown to prevent infinite spawn loops.
 *   **Modern Control Panel**: A Fluent Dark Mode C# WPF desktop GUI designed for Windows 11.
 *   **Quick Presets Dropdown**: Supports 1-click optimization profiles in the GUI to instantly configure rules for games, overlays, dynamic web applications, and strict background throttles.
 *   **Visual Optimization Badges**: Displays a green "Optimized" badge next to processes with active rules, turning the action button from a default blue "Optimize" to a distinct green-bordered "Edit Rule".
-*   **Preset Auto-Detection**: When editing a rule, the GUI automatically maps properties (priorities, affinity, and background settings) back to the matching preset.
+*   **Preset Auto-Detection**: When editing a rule, the GUI automatically maps properties back to the matching preset.
 *   **Configuration Hot-Reloading**: Automatically detects edits to `rules.json` and updates the active rules list in real-time.
 
 ---
@@ -151,6 +156,13 @@ The background daemon reads rules from `rules.json` located in the same director
 | `io_priority` | String | No | I/O scheduling class: `Very Low`, `Low`, `Normal`, or `High`. |
 | `cpu_affinity` | String | No | Logical core list (e.g., `"0,1,2"`), decimal mask (e.g. `15`), or hex mask (e.g., `"0x0F"`). |
 | `background_only`| Boolean| No | If `true`, rules only apply when the process is not in the foreground. |
+| `smart_trim_threshold_mb` | Integer | No | Memory threshold (in MB) above which working set RAM is trimmed. |
+| `cpu_throttle_trigger_pct` | Integer | No | CPU percentage (1-100 system-wide) threshold to trigger CPU Affinity limiting. |
+| `cpu_throttle_duration_secs` | Integer | No | Sustained duration in seconds before triggering CPU Affinity limiting. |
+| `instance_balance` | Boolean | No | If `true`, cyclically distributes multiple running instances of this process across cores. |
+| `disallowed` | Boolean | No | If `true`, instantly terminates the process when detected. |
+| `keep_alive` | Boolean | No | If `true`, automatically resurrects the process if it is not running. |
+| `executable_path` | String | No | Full path to the executable to launch for the Keep Alive watchdog. |
 
 ### Example Configuration
 

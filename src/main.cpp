@@ -3,6 +3,7 @@
 #include "process_utils.hpp"
 #include <windows.h>
 #include <tlhelp32.h>
+#include <psapi.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <filesystem>
@@ -34,6 +35,26 @@ bool EqualsIgnoreCase(std::string_view a, std::string_view b) {
     });
 }
 
+// Helper to convert std::string to lowercase
+std::string ToLower(std::string_view str) {
+    std::string res(str);
+    std::transform(res.begin(), res.end(), res.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return res;
+}
+
+// RAII Handle wrapper
+struct HandleCloser {
+    void operator()(HANDLE h) const {
+        if (h && h != INVALID_HANDLE_VALUE) {
+            CloseHandle(h);
+        }
+    }
+};
+using UniqueHandle = std::unique_ptr<void, HandleCloser>;
+
+
 // Retrieves the directory containing the current executable
 std::wstring GetExecutableDirectory() {
     wchar_t buffer[MAX_PATH];
@@ -46,7 +67,66 @@ struct ProcessState {
     std::string process_name;
     bool rules_applied = false;
     bool is_foreground = false;
+
+    // CPU affinity limiter tracking
+    ULONGLONG last_kernel_time = 0;
+    ULONGLONG last_user_time = 0;
+    ULONGLONG last_system_time = 0;
+    bool has_prev_times = false;
+    int seconds_above_trigger = 0;
+    int seconds_below_restore = 0;
+    bool is_throttled = false;
+    DWORD_PTR original_affinity_mask = 0;
+    bool has_original_affinity = false;
+
+    // Instance balancer tracking
+    bool instance_balanced = false;
+    DWORD_PTR instance_balanced_mask = 0;
 };
+
+// Helper to convert std::string (UTF-8) to std::wstring
+std::wstring Utf8ToWide(const std::string& str) {
+    if (str.empty()) return L"";
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), static_cast<int>(str.size()), nullptr, 0);
+    if (size_needed <= 0) return L"";
+    std::wstring wstrTo(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), static_cast<int>(str.size()), &wstrTo[0], size_needed);
+    return wstrTo;
+}
+
+// Spawns a process using CreateProcessW
+bool SpawnProcess(const std::wstring& exePath) {
+    STARTUPINFOW si;
+    PROCESS_INFORMATION pi;
+    RtlZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    RtlZeroMemory(&pi, sizeof(pi));
+
+    // CreateProcessW can modify the command line, so copy it
+    std::wstring cmdLine = L"\"" + exePath + L"\"";
+    std::vector<wchar_t> cmdLineBuf(cmdLine.begin(), cmdLine.end());
+    cmdLineBuf.push_back(L'\0');
+
+    if (!CreateProcessW(
+        nullptr,            // No module name
+        cmdLineBuf.data(),  // Command line
+        nullptr,            // Process handle not inheritable
+        nullptr,            // Thread handle not inheritable
+        FALSE,              // Set handle inheritance to FALSE
+        0,                  // No creation flags
+        nullptr,            // Use parent's environment block
+        nullptr,            // Use parent's starting directory 
+        &si,                // Pointer to STARTUPINFO structure
+        &pi                 // Pointer to PROCESS_INFORMATION structure
+    )) {
+        Logger::Error("CreateProcessW failed for path: " + WideToUtf8(exePath) + ". Error: " + std::to_string(GetLastError()));
+        return false;
+    }
+
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    return true;
+}
 
 // Main process optimization loop
 void MainLoop(const std::filesystem::path& configPath) {
@@ -83,6 +163,32 @@ void MainLoop(const std::filesystem::path& configPath) {
             // Reset applied states so rules get re-evaluated with the new configuration
             for (auto& [pid, state] : trackedProcesses) {
                 state.rules_applied = false;
+
+                // Check if the new/updated rule still has CPU throttling. If not, and it was throttled, restore original affinity.
+                auto newRuleOpt = config.FindRule(state.process_name);
+                if (state.is_throttled) {
+                    bool keepThrottling = false;
+                    if (newRuleOpt.has_value()) {
+                        const auto& nr = newRuleOpt.value();
+                        if (nr.cpu_throttle_trigger_pct.has_value() && nr.cpu_throttle_duration_secs.has_value()) {
+                            keepThrottling = true;
+                        }
+                    }
+                    if (!keepThrottling) {
+                        HANDLE hProcessSet = OpenProcess(PROCESS_SET_INFORMATION, FALSE, pid);
+                        if (hProcessSet) {
+                            UniqueHandle uhProcessSet(hProcessSet);
+                            if (state.has_original_affinity) {
+                                SetProcessAffinityMask(uhProcessSet.get(), state.original_affinity_mask);
+                            }
+                            Logger::Info("[CPU Limiter] Restored original affinity for PID " + std::to_string(pid) + " (" + state.process_name + ") because throttle rule was removed/changed on reload.");
+                        }
+                        state.is_throttled = false;
+                        state.has_original_affinity = false;
+                        state.seconds_above_trigger = 0;
+                        state.seconds_below_restore = 0;
+                    }
+                }
             }
         }
 
@@ -92,6 +198,10 @@ void MainLoop(const std::filesystem::path& configPath) {
         if (hwndForeground) {
             GetWindowThreadProcessId(hwndForeground, &foregroundPid);
         }
+
+        SYSTEM_INFO sysInfo;
+        GetSystemInfo(&sysInfo);
+        DWORD numLogicalCores = sysInfo.dwNumberOfProcessors;
 
         // 3. Take a snapshot of all active processes
         HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -112,6 +222,8 @@ void MainLoop(const std::filesystem::path& configPath) {
         }
 
         std::unordered_set<DWORD> currentPids;
+        std::unordered_set<std::string> runningProcessNames;
+        std::unordered_map<std::wstring, std::vector<DWORD>> balancedProcesses;
 
         do {
             DWORD pid = pe32.th32ProcessID;
@@ -119,25 +231,175 @@ void MainLoop(const std::filesystem::path& configPath) {
 
             std::wstring wName = pe32.szExeFile;
             std::string name = WideToUtf8(wName);
+            std::string lowerName = ToLower(name);
             currentPids.insert(pid);
+            runningProcessNames.insert(lowerName);
 
             auto ruleOpt = config.FindRule(name);
             if (ruleOpt.has_value()) {
                 const auto& rule = ruleOpt.value();
+
+                // Feature 4: Disallowed / Blacklist
+                if (rule.disallowed) {
+                    HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+                    if (hProcess) {
+                        UniqueHandle uhProcess(hProcess);
+                        if (TerminateProcess(uhProcess.get(), 0)) {
+                            Logger::Info("[INFO] Instantly terminated disallowed process: " + name + " (PID " + std::to_string(pid) + ")");
+                        } else {
+                            Logger::Warn("Failed to terminate disallowed process: " + name + " (PID " + std::to_string(pid) + "). Error: " + std::to_string(GetLastError()));
+                        }
+                    } else {
+                        Logger::Warn("Failed to open disallowed process: " + name + " (PID " + std::to_string(pid) + ") for termination.");
+                    }
+                    continue; // Skip any further processing
+                }
+
                 auto& state = trackedProcesses[pid];
                 state.process_name = name;
 
+                // Feature 1: SmartTrim
+                if (rule.smart_trim_threshold_mb.has_value()) {
+                    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SET_QUOTA, FALSE, pid);
+                    if (hProcess) {
+                        UniqueHandle uhProcess(hProcess);
+                        PROCESS_MEMORY_COUNTERS pmc;
+                        if (K32GetProcessMemoryInfo(uhProcess.get(), &pmc, sizeof(pmc))) {
+                            SIZE_T workingSetMb = pmc.WorkingSetSize / (1024 * 1024);
+                            if (workingSetMb > static_cast<SIZE_T>(rule.smart_trim_threshold_mb.value())) {
+                                if (SetProcessWorkingSetSize(uhProcess.get(), (SIZE_T)-1, (SIZE_T)-1)) {
+                                    Logger::Info("[SmartTrim] Trimmed memory for PID " + std::to_string(pid) + " (" + name + ") as working set (" + std::to_string(workingSetMb) + " MB) exceeded threshold (" + std::to_string(rule.smart_trim_threshold_mb.value()) + " MB).");
+                                } else {
+                                    Logger::Warn("[SmartTrim] Failed to trim memory for PID " + std::to_string(pid) + " (" + name + "). Error: " + std::to_string(GetLastError()));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Feature 2: CPU Affinity Limiter
+                if (rule.cpu_throttle_trigger_pct.has_value() && rule.cpu_throttle_duration_secs.has_value()) {
+                    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+                    if (hProcess) {
+                        UniqueHandle uhProcess(hProcess);
+                        FILETIME creationTime, exitTime, kernelTime, userTime;
+                        if (GetProcessTimes(uhProcess.get(), &creationTime, &exitTime, &kernelTime, &userTime)) {
+                            ULARGE_INTEGER kernelReal, userReal;
+                            kernelReal.LowPart = kernelTime.dwLowDateTime;
+                            kernelReal.HighPart = kernelTime.dwHighDateTime;
+                            userReal.LowPart = userTime.dwLowDateTime;
+                            userReal.HighPart = userTime.dwHighDateTime;
+
+                            ULONGLONG currentKernel = kernelReal.QuadPart;
+                            ULONGLONG currentUser = userReal.QuadPart;
+
+                            FILETIME sysTime;
+                            GetSystemTimeAsFileTime(&sysTime);
+                            ULARGE_INTEGER sysReal;
+                            sysReal.LowPart = sysTime.dwLowDateTime;
+                            sysReal.HighPart = sysTime.dwHighDateTime;
+                            ULONGLONG currentSystemTime = sysReal.QuadPart;
+
+                            if (state.has_prev_times) {
+                                ULONGLONG deltaProcess = (currentKernel - state.last_kernel_time) + (currentUser - state.last_user_time);
+                                ULONGLONG deltaReal = currentSystemTime - state.last_system_time;
+
+                                if (deltaReal > 0) {
+                                    double cpuUsagePct = (double)deltaProcess / (double)(deltaReal * numLogicalCores) * 100.0;
+                                    int triggerPct = rule.cpu_throttle_trigger_pct.value();
+                                    int durationSecs = rule.cpu_throttle_duration_secs.value();
+
+                                    if (cpuUsagePct >= triggerPct) {
+                                        state.seconds_above_trigger++;
+                                        state.seconds_below_restore = 0;
+
+                                        if (state.seconds_above_trigger >= durationSecs && !state.is_throttled) {
+                                            // Apply throttle
+                                            HANDLE hProcessSet = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SET_INFORMATION, FALSE, pid);
+                                            if (hProcessSet) {
+                                                UniqueHandle uhProcessSet(hProcessSet);
+                                                DWORD_PTR processAffinity = 0;
+                                                DWORD_PTR systemAffinity = 0;
+                                                if (GetProcessAffinityMask(uhProcessSet.get(), &processAffinity, &systemAffinity)) {
+                                                    state.original_affinity_mask = processAffinity;
+                                                    state.has_original_affinity = true;
+
+                                                    DWORD_PTR restrictedMask = 0;
+                                                    if (numLogicalCores > 1) {
+                                                        restrictedMask = (static_cast<DWORD_PTR>(1) << (numLogicalCores - 1)) | (static_cast<DWORD_PTR>(1) << (numLogicalCores - 2));
+                                                    } else {
+                                                        restrictedMask = 0x01;
+                                                    }
+
+                                                    if (SetProcessAffinityMask(uhProcessSet.get(), restrictedMask)) {
+                                                        state.is_throttled = true;
+                                                        Logger::Info("[CPU Limiter] Throttled PID " + std::to_string(pid) + " (" + name + ") due to high CPU usage (" + std::to_string(cpuUsagePct) + "%). Restricting affinity to last cores.");
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        state.seconds_above_trigger = 0;
+
+                                        if (state.is_throttled) {
+                                            if (cpuUsagePct < (triggerPct / 2.0)) {
+                                                state.seconds_below_restore++;
+                                                if (state.seconds_below_restore >= 5) {
+                                                    // Restore affinity
+                                                    HANDLE hProcessSet = OpenProcess(PROCESS_SET_INFORMATION, FALSE, pid);
+                                                    if (hProcessSet) {
+                                                        UniqueHandle uhProcessSet(hProcessSet);
+                                                        if (state.has_original_affinity) {
+                                                            if (SetProcessAffinityMask(uhProcessSet.get(), state.original_affinity_mask)) {
+                                                                Logger::Info("[CPU Limiter] Restored original affinity for PID " + std::to_string(pid) + " (" + name + ") after CPU usage dropped to " + std::to_string(cpuUsagePct) + "%.");
+                                                                state.is_throttled = false;
+                                                                state.seconds_below_restore = 0;
+                                                            }
+                                                        } else {
+                                                            DWORD_PTR processAffinity = 0;
+                                                            DWORD_PTR systemAffinity = 0;
+                                                            if (GetProcessAffinityMask(uhProcessSet.get(), &processAffinity, &systemAffinity)) {
+                                                                if (SetProcessAffinityMask(uhProcessSet.get(), systemAffinity)) {
+                                                                    Logger::Info("[CPU Limiter] Restored system affinity for PID " + std::to_string(pid) + " (" + name + ").");
+                                                                    state.is_throttled = false;
+                                                                    state.seconds_below_restore = 0;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                state.seconds_below_restore = 0;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            state.last_kernel_time = currentKernel;
+                            state.last_user_time = currentUser;
+                            state.last_system_time = currentSystemTime;
+                            state.has_prev_times = true;
+                        }
+                    }
+                }
+
+                // Feature 3: Instance Balancer
+                if (rule.instance_balance) {
+                    balancedProcesses[wName].push_back(pid);
+                }
+
+                // Standard optimization rules (priority, EcoQoS, limit)
                 bool nowForeground = (pid == foregroundPid);
 
                 if (rule.background_only) {
-                    // Apply if rules haven't been applied yet, or if foreground focus transitioned
                     if (!state.rules_applied || state.is_foreground != nowForeground) {
-                        HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_SET_QUOTA | PROCESS_TERMINATE, FALSE, pid);
+                        HANDLE hProcessRaw = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_SET_QUOTA | PROCESS_TERMINATE, FALSE, pid);
+                        UniqueHandle hProcess(hProcessRaw);
                         if (nowForeground) {
                             Logger::Info("PID " + std::to_string(pid) + " (" + name + ") is in foreground. Restoring Normal CPU priority and disabling EcoQoS.");
                             ProcessUtils::SetCpuPriority(pid, "Normal");
                             if (hProcess) {
-                                if (ProcessUtils::SetProcessEcoQoS(hProcess, false)) {
+                                if (ProcessUtils::SetProcessEcoQoS(hProcess.get(), false)) {
                                     Logger::Info("Disabled EcoQoS (Efficiency Mode) for PID " + std::to_string(pid) + " (" + name + ").");
                                 }
                             }
@@ -145,46 +407,41 @@ void MainLoop(const std::filesystem::path& configPath) {
                             Logger::Info("PID " + std::to_string(pid) + " (" + name + ") is in background. Adjusting priorities.");
                             if (rule.cpu_priority) ProcessUtils::SetCpuPriority(pid, *rule.cpu_priority);
                             if (rule.io_priority) ProcessUtils::SetIoPriority(pid, *rule.io_priority);
-                            if (rule.cpu_affinity) ProcessUtils::SetCpuAffinity(pid, *rule.cpu_affinity);
+                            if (rule.cpu_affinity && !rule.instance_balance) ProcessUtils::SetCpuAffinity(pid, *rule.cpu_affinity);
                             if (hProcess) {
-                                // Enable EcoQoS (either because background_only is active, or explicitly marked eco_qos)
-                                if (ProcessUtils::SetProcessEcoQoS(hProcess, true)) {
+                                if (ProcessUtils::SetProcessEcoQoS(hProcess.get(), true)) {
                                     Logger::Info("Applied EcoQoS (Efficiency Mode) to background process PID " + std::to_string(pid) + " (" + name + ").");
                                 }
                                 if (rule.cpu_limit > 0 && rule.cpu_limit < 100) {
-                                    if (ProcessUtils::LimitProcessCpuRate(hProcess, rule.cpu_limit)) {
+                                    if (ProcessUtils::LimitProcessCpuRate(hProcess.get(), rule.cpu_limit)) {
                                         Logger::Info("Applied CPU rate limit (" + std::to_string(rule.cpu_limit) + "%) to background process PID " + std::to_string(pid) + " (" + name + ").");
                                     }
                                 }
                             }
                         }
-                        if (hProcess) {
-                            CloseHandle(hProcess);
-                        }
                         state.is_foreground = nowForeground;
                         state.rules_applied = true;
                     }
                 } else {
-                    // Standard rules: apply once
                     if (!state.rules_applied) {
                         Logger::Info("Applying rules to PID " + std::to_string(pid) + " (" + name + ").");
                         if (rule.cpu_priority) ProcessUtils::SetCpuPriority(pid, *rule.cpu_priority);
                         if (rule.io_priority) ProcessUtils::SetIoPriority(pid, *rule.io_priority);
-                        if (rule.cpu_affinity) ProcessUtils::SetCpuAffinity(pid, *rule.cpu_affinity);
+                        if (rule.cpu_affinity && !rule.instance_balance) ProcessUtils::SetCpuAffinity(pid, *rule.cpu_affinity);
                         
-                        HANDLE hProcess = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_SET_QUOTA | PROCESS_TERMINATE, FALSE, pid);
+                        HANDLE hProcessRaw = OpenProcess(PROCESS_SET_INFORMATION | PROCESS_SET_QUOTA | PROCESS_TERMINATE, FALSE, pid);
+                        UniqueHandle hProcess(hProcessRaw);
                         if (hProcess) {
                             if (rule.eco_qos) {
-                                if (ProcessUtils::SetProcessEcoQoS(hProcess, true)) {
+                                if (ProcessUtils::SetProcessEcoQoS(hProcess.get(), true)) {
                                     Logger::Info("Applied EcoQoS (Efficiency Mode) to PID " + std::to_string(pid) + " (" + name + ").");
                                 }
                             }
                             if (rule.cpu_limit > 0 && rule.cpu_limit < 100) {
-                                if (ProcessUtils::LimitProcessCpuRate(hProcess, rule.cpu_limit)) {
+                                if (ProcessUtils::LimitProcessCpuRate(hProcess.get(), rule.cpu_limit)) {
                                     Logger::Info("Applied CPU rate limit (" + std::to_string(rule.cpu_limit) + "%) to PID " + std::to_string(pid) + " (" + name + ").");
                                 }
                             }
-                            CloseHandle(hProcess);
                         }
                         state.rules_applied = true;
                     }
@@ -201,6 +458,27 @@ void MainLoop(const std::filesystem::path& configPath) {
                 it = trackedProcesses.erase(it);
             } else {
                 ++it;
+            }
+        }
+
+        // Feature 3: Apply cyclic affinity masks to balanced processes
+        for (auto& [wExeName, pids] : balancedProcesses) {
+            if (pids.empty()) continue;
+            std::sort(pids.begin(), pids.end());
+            std::string exeName = WideToUtf8(wExeName);
+
+            for (size_t i = 0; i < pids.size(); ++i) {
+                DWORD pid = pids[i];
+                DWORD_PTR targetMask = static_cast<DWORD_PTR>(1) << (i % numLogicalCores);
+
+                auto& state = trackedProcesses[pid];
+                if (!state.instance_balanced || state.instance_balanced_mask != targetMask) {
+                    if (ProcessUtils::SetCpuAffinityMask(pid, targetMask)) {
+                        state.instance_balanced = true;
+                        state.instance_balanced_mask = targetMask;
+                        Logger::Info("[Instance Balancer] Assigned PID " + std::to_string(pid) + " (" + exeName + ") Instance " + std::to_string(i) + " to Core Mask 0x" + std::to_string(targetMask));
+                    }
+                }
             }
         }
 
@@ -273,12 +551,12 @@ void MainLoop(const std::filesystem::path& configPath) {
                         hProcess = OpenProcess(PROCESS_SET_QUOTA | PROCESS_QUERY_INFORMATION, FALSE, pid);
                     }
                     if (hProcess) {
-                        if (ProcessUtils::TrimProcessMemory(hProcess)) {
+                        UniqueHandle uhProcess(hProcess);
+                        if (ProcessUtils::TrimProcessMemory(uhProcess.get())) {
                             Logger::Info("Trimmed working set memory for launcher process: " + state.process_name + " (PID " + std::to_string(pid) + ")");
                         } else {
                             Logger::Warn("Failed to trim working set memory for launcher: " + state.process_name + " (PID " + std::to_string(pid) + ")");
                         }
-                        CloseHandle(hProcess);
                     }
                 }
             }
@@ -294,6 +572,39 @@ void MainLoop(const std::filesystem::path& configPath) {
                 }
             }
             _wasPowerPlanSwitched = false;
+        }
+
+        // Feature 5: Watchdog / Keep Alive
+        static std::unordered_map<std::string, std::chrono::steady_clock::time_point> lastLaunchTimes;
+        auto nowTime = std::chrono::steady_clock::now();
+
+        for (const auto& rule : config.GetRules()) {
+            if (rule.keep_alive && !rule.executable_path.empty()) {
+                std::string lowerName = ToLower(rule.process_name);
+                bool isRunning = (runningProcessNames.find(lowerName) != runningProcessNames.end());
+
+                if (!isRunning) {
+                    auto it = lastLaunchTimes.find(lowerName);
+                    bool cooldownElapsed = true;
+                    if (it != lastLaunchTimes.end()) {
+                        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(nowTime - it->second).count();
+                        if (elapsed < 10) {
+                            cooldownElapsed = false;
+                        }
+                    }
+
+                    if (cooldownElapsed) {
+                        Logger::Info("[Watchdog] Process " + rule.process_name + " is not running. Resurrecting from path: " + rule.executable_path);
+                        std::wstring wExePath = Utf8ToWide(rule.executable_path);
+                        if (SpawnProcess(wExePath)) {
+                            lastLaunchTimes[lowerName] = nowTime;
+                        } else {
+                            Logger::Error("[Watchdog] Failed to launch process " + rule.process_name + " from path: " + rule.executable_path);
+                            lastLaunchTimes[lowerName] = nowTime; // Prevent rapid retries on launch failure
+                        }
+                    }
+                }
+            }
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));

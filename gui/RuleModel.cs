@@ -31,6 +31,27 @@ namespace WinAnanicyGui
         [JsonPropertyName("cpu_limit")]
         public int? CpuLimit { get; set; }
 
+        [JsonPropertyName("smart_trim_threshold_mb")]
+        public int? SmartTrimThresholdMb { get; set; }
+
+        [JsonPropertyName("cpu_throttle_trigger_pct")]
+        public int? CpuThrottleTriggerPct { get; set; }
+
+        [JsonPropertyName("cpu_throttle_duration_secs")]
+        public int? CpuThrottleDurationSecs { get; set; }
+
+        [JsonPropertyName("instance_balance")]
+        public bool? InstanceBalance { get; set; }
+
+        [JsonPropertyName("disallowed")]
+        public bool? Disallowed { get; set; }
+
+        [JsonPropertyName("keep_alive")]
+        public bool? KeepAlive { get; set; }
+
+        [JsonPropertyName("executable_path")]
+        public string? ExecutablePath { get; set; }
+
         /// <summary>
         /// Clone helper to copy rules when editing
         /// </summary>
@@ -45,7 +66,14 @@ namespace WinAnanicyGui
                 BackgroundOnly = this.BackgroundOnly,
                 EcoQoS = this.EcoQoS,
                 Launcher = this.Launcher,
-                CpuLimit = this.CpuLimit
+                CpuLimit = this.CpuLimit,
+                SmartTrimThresholdMb = this.SmartTrimThresholdMb,
+                CpuThrottleTriggerPct = this.CpuThrottleTriggerPct,
+                CpuThrottleDurationSecs = this.CpuThrottleDurationSecs,
+                InstanceBalance = this.InstanceBalance,
+                Disallowed = this.Disallowed,
+                KeepAlive = this.KeepAlive,
+                ExecutablePath = this.ExecutablePath
             };
         }
     }
