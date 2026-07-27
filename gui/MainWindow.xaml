@@ -136,8 +136,8 @@
                         </Button>
                     </StackPanel>
                     <StackPanel Grid.Row="2">
-                        <TextBlock Text="{DynamicResource Version}" Style="{StaticResource MutedText}" FontSize="11"/>
-                        <TextBlock Text="Open source · MIT" Style="{StaticResource MutedText}" FontSize="11" Margin="0,3,0,0"/>
+                        <TextBlock x:Name="VersionText" Style="{StaticResource MutedText}" FontSize="11"/>
+                        <TextBlock Text="Open source · GPL-3.0-or-later" Style="{StaticResource MutedText}" FontSize="11" Margin="0,3,0,0"/>
                     </StackPanel>
                 </Grid>
             </Border>

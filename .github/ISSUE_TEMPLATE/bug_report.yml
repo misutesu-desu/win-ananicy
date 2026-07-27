@@ -1,0 +1,59 @@
+name: Bug report
+description: Report a reproducible WinAnanicy problem
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve WinAnanicy. Do not include secrets or
+        exploitable security details here; use the private security advisory
+        flow described in SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: WinAnanicy version
+      placeholder: "1.0.1"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 24H2, build 26100"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Include the smallest rule and sequence that reproduces the problem.
+      placeholder: |
+        1. Add a rule for...
+        2. Start...
+        3. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and logs
+      description: Remove personal paths or sensitive process information.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I downloaded WinAnanicy from the official GitHub release.
+          required: true
+        - label: I searched existing issues for this problem.
+          required: true

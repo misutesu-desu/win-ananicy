@@ -2,6 +2,23 @@
 
 All notable changes to WinAnanicy are documented here.
 
+## [1.0.1] - 2026-07-27
+
+### Changed
+
+- Relicensed the project consistently under GPL-3.0-or-later.
+- Reworked the repository landing page around reversible process control,
+  verifiable releases, and explicit non-goals.
+- Added an English product demo, a custom social preview, contribution
+  templates, and a public roadmap.
+
+### Security and transparency
+
+- Documented SHA-256 verification and the current unsigned-build status.
+- Added signed GitHub build-provenance attestations for release packages.
+- Made the license, release, application footer, and packaged documentation
+  agree on one license and version.
+
 ## [1.0.0] - 2026-07-27
 
 ### Added

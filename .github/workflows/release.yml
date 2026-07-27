@@ -6,6 +6,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -24,6 +26,14 @@ jobs:
           Update-SessionEnvironment
           $version = "${{ github.ref_name }}".TrimStart("v")
           ./scripts/build-release.ps1 -Version $version -Generator "MinGW Makefiles"
+      - name: Attest release packages
+        uses: actions/attest@v4
+        with:
+          subject-path: artifacts/WinAnanicy-*
+      - name: Attest release checksums
+        uses: actions/attest@v4
+        with:
+          subject-path: artifacts/SHA256SUMS.txt
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v2
         with:

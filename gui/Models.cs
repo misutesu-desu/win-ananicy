@@ -27,7 +27,7 @@ public sealed class UiPreferences
 public sealed class EngineStatus
 {
     [JsonPropertyName("version")]
-    public string Version { get; set; } = "1.0.0";
+    public string Version { get; set; } = "1.0.1";
 
     [JsonPropertyName("running")]
     public bool Running { get; set; }

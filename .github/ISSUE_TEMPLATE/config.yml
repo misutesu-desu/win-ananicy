@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/misutesu-desu/win-ananicy/security/advisories/new
+    about: Report exploitable details privately.
+  - name: Questions and ideas
+    url: https://github.com/misutesu-desu/win-ananicy/discussions
+    about: Ask usage questions or discuss early ideas.

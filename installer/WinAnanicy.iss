@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.0.1"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\artifacts\app"
@@ -9,7 +9,7 @@
 #endif
 
 #define AppName "WinAnanicy"
-#define AppPublisher "WinAnanicy Contributors"
+#define AppPublisher "Abdullah Çafer (misutesu-desu)"
 #define AppUrl "https://github.com/misutesu-desu/win-ananicy"
 #define AppExeName "WinAnanicy.exe"
 #define EngineExeName "win-ananicy.exe"

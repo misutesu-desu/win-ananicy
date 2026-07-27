@@ -12,3 +12,6 @@ Thank you for improving WinAnanicy.
 Use Conventional Commits where practical. Do not add telemetry, network calls,
 privileged services, or configuration execution paths without an explicit
 security review.
+
+By submitting a contribution, you agree that it may be distributed under the
+GNU General Public License v3.0 or later.
