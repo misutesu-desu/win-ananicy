@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "8.0.x"
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: manual
@@ -38,4 +38,4 @@ jobs:
         run: |
           dotnet restore gui/WinAnanicyGui.csproj
           dotnet build gui/WinAnanicyGui.csproj -c Release --no-restore
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
