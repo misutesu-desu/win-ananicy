@@ -15,13 +15,15 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "8.0.x"
-      - name: Install Inno Setup
-        run: choco install innosetup --yes --no-progress
+      - name: Install release toolchain
+        run: choco install innosetup mingw --yes --no-progress
       - name: Build release
         shell: pwsh
         run: |
+          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+          Update-SessionEnvironment
           $version = "${{ github.ref_name }}".TrimStart("v")
-          ./scripts/build-release.ps1 -Version $version -Generator "Visual Studio 17 2022"
+          ./scripts/build-release.ps1 -Version $version -Generator "MinGW Makefiles"
       - name: Upload release artifacts
         uses: softprops/action-gh-release@v2
         with:
