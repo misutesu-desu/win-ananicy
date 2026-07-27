@@ -91,7 +91,7 @@
     <system:String x:Key="JsonFiles">JSON dosyaları</system:String>
     <system:String x:Key="BackgroundShort">Arka plan</system:String>
     <system:String x:Key="MonitorShort">İzleme</system:String>
-    <system:String x:Key="Version">Sürüm 1.0.0</system:String>
+    <system:String x:Key="Version">Sürüm {0}</system:String>
     <system:String x:Key="StatusReady">Hazır</system:String>
     <system:String x:Key="RuleDetected">Tanımlı</system:String>
     <system:String x:Key="NoRule">Kural yok</system:String>

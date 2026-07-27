@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows;
@@ -829,6 +830,7 @@ public partial class MainWindow : Window
         LocalizationService.Apply(language);
         SelectTag(LanguageComboBox, language);
         SelectTag(SettingsLanguageComboBox, language);
+        UpdateVersionText();
         _preferences.Language = language;
         _changingLanguage = false;
         RebuildTrayMenu();
@@ -839,6 +841,18 @@ public partial class MainWindow : Window
             _ = RefreshEngineStatusAsync();
             _ = RefreshProcessesAsync();
         }
+    }
+
+    private void UpdateVersionText()
+    {
+        var assemblyVersion = Assembly.GetExecutingAssembly().GetName().Version;
+        var version = assemblyVersion is null
+            ? "unknown"
+            : $"{assemblyVersion.Major}.{assemblyVersion.Minor}.{assemblyVersion.Build}";
+        VersionText.Text = string.Format(
+            CultureInfo.CurrentCulture,
+            LocalizationService.Text("Version"),
+            version);
     }
 
     private async Task SavePreferencesAsync()

@@ -91,7 +91,7 @@
     <system:String x:Key="JsonFiles">JSON files</system:String>
     <system:String x:Key="BackgroundShort">Background</system:String>
     <system:String x:Key="MonitorShort">Monitor</system:String>
-    <system:String x:Key="Version">Version 1.0.0</system:String>
+    <system:String x:Key="Version">Version {0}</system:String>
     <system:String x:Key="StatusReady">Ready</system:String>
     <system:String x:Key="RuleDetected">Configured</system:String>
     <system:String x:Key="NoRule">No rule</system:String>

@@ -1,78 +1,109 @@
 <p align="center">
-  <img src="assets/win-ananicy-icon.png" width="140" alt="WinAnanicy logo">
+  <img src="assets/win-ananicy-icon.png" width="128" alt="WinAnanicy logo">
 </p>
 
 <h1 align="center">WinAnanicy</h1>
 
 <p align="center">
-  Smart, reversible process optimization for Windows 10 and 11.<br>
-  Windows 10 ve 11 için akıllı, geri alınabilir süreç optimizasyonu.
+  Reversible process control for Windows 10 and 11.<br>
+  No administrator access. No privileged service. No telemetry.
 </p>
 
 <p align="center">
-  <a href="https://github.com/misutesu-desu/win-ananicy/releases/latest">Download setup</a> ·
-  <a href="#english">English</a> ·
-  <a href="#türkçe">Türkçe</a> ·
-  <a href="CHANGELOG.md">Changelog</a>
+  <a href="https://github.com/misutesu-desu/win-ananicy/actions/workflows/build.yml"><img alt="Build and test" src="https://github.com/misutesu-desu/win-ananicy/actions/workflows/build.yml/badge.svg"></a>
+  <a href="https://github.com/misutesu-desu/win-ananicy/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://github.com/misutesu-desu/win-ananicy/actions/workflows/codeql.yml/badge.svg"></a>
+  <a href="https://github.com/misutesu-desu/win-ananicy/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/misutesu-desu/win-ananicy"></a>
+  <a href="LICENSE"><img alt="GPL-3.0-or-later" src="https://img.shields.io/github/license/misutesu-desu/win-ananicy"></a>
+  <a href="https://github.com/misutesu-desu/win-ananicy/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/misutesu-desu/win-ananicy/total"></a>
 </p>
 
-![WinAnanicy Turkish dashboard](docs/images/dashboard-tr.png)
+<p align="center">
+  <a href="https://github.com/misutesu-desu/win-ananicy/releases/latest"><strong>Download</strong></a>
+  · <a href="#how-it-works">How it works</a>
+  · <a href="docs/VERIFY-DOWNLOADS.md">Verify a download</a>
+  · <a href="ROADMAP.md">Roadmap</a>
+  · <a href="#türkçe">Türkçe</a>
+</p>
 
-## English
+<p align="center">
+  <img src="docs/images/winananicy-demo.gif" width="960" alt="WinAnanicy applying and monitoring a reversible process rule">
+</p>
 
-WinAnanicy is a lightweight Windows process optimizer with a native C++ engine
-and a polished WPF control center. It applies rules only when needed, reports
-what is actually active, and restores the original process state when a rule no
-longer applies or the engine stops.
+WinAnanicy is an open-source Windows process rule engine with a native C++ core
+and a WPF control center. It applies a rule only while its conditions match,
+shows what is active, and restores the process's original state when the rule
+stops applying or the engine exits.
 
-### Install
+## Install
 
-1. Download `WinAnanicy-1.0.0-Setup.exe` from
-   [Releases](https://github.com/misutesu-desu/win-ananicy/releases/latest).
-2. Choose English or Turkish in the installer.
-3. Keep “Start the optimization engine automatically with Windows” enabled.
+1. Download the current **Setup** package from
+   [GitHub Releases](https://github.com/misutesu-desu/win-ananicy/releases/latest).
+2. Choose English or Turkish.
+3. Optionally allow the engine to start with Windows.
 4. Open **Processes**, select an application, and choose **Add rule**.
 
-The installer is per-user and does not require administrator access. A portable
-ZIP is also published for advanced users.
+The installer is per-user and does not request elevation. A self-contained
+Portable ZIP is available for users who prefer extract-and-run software.
 
-### Highlights
+> [!IMPORTANT]
+> The current community build is not Authenticode-signed, so Windows SmartScreen
+> may show an unknown-publisher warning. Download only from this repository and
+> verify the package against `SHA256SUMS.txt` by following
+> [Verify a download](docs/VERIFY-DOWNLOADS.md).
 
-- Live Dashboard, process browser, rule editor, activity log, and settings.
-- Complete English and Turkish application and installer localization.
-- One-click Game, Creative, Background, and Strict Saver profiles.
-- CPU priority, I/O priority, core affinity, EcoQoS, and CPU-rate limits.
-- Background-only rules based on the real foreground window.
-- SmartTrim, sustained-load throttling, multi-instance balancing, blocking, and
-  bounded Keep Alive recovery.
-- Live config reload, strict validation, atomic saves, import/export, and ten
-  rotating backups.
-- Adaptive power plan that is enabled only while a qualifying rule is active.
-- Notification-area controls and optional Windows startup.
-- No service, no elevation, no telemetry, and no network connection.
+## What WinAnanicy controls
 
-### Safety model
+| Control | Behavior |
+|---|---|
+| CPU priority | Applies `Idle` through `High` without using `Realtime` |
+| I/O priority | Applies `Very Low` through `High` |
+| CPU affinity | Selects logical cores by list or explicit bit mask |
+| EcoQoS | Requests Windows efficiency behavior for suitable processes |
+| CPU rate limit | Uses a Windows job object to enforce a configured limit |
+| Background-only rules | Applies the complete rule only while the app is not foreground |
+| SmartTrim | Trims a matching process after a configured memory threshold |
+| Sustained-load throttle | Responds only after both load and duration thresholds match |
+| Instance balancing | Spreads matching instances across available logical cores |
+| Keep Alive / Disallowed | Restarts a trusted executable or terminates a matching process |
 
-The engine runs inside the signed-in user's interactive session. Configuration
-is stored in `%LOCALAPPDATA%\WinAnanicy`, so an unprivileged configuration file
-is never consumed by a `LocalSystem` service. WinAnanicy captures CPU priority,
-I/O priority, affinity, EcoQoS, and rate-limit state before changing them and
-restores those values on rule removal, foreground transitions, config reload,
-and clean shutdown.
+Quick presets provide practical starting points for games, creative tools,
+background applications, and strict power saving. Every preset remains visible
+and editable as a normal rule.
 
-`Disallowed` terminates matching processes. `Keep Alive` starts the configured
-executable if it is missing. Use both features only with applications you trust;
-the editor prevents them from being enabled together.
+## What it does not claim
 
-### Affinity syntax
+WinAnanicy is not a registry cleaner, driver updater, overclocking utility, or a
+magic FPS booster. It does not disable Windows security features or apply hidden
+system tweaks. Process scheduling can improve consistency in the right workload,
+but results depend on the application, hardware, and bottleneck.
 
-- `0,2,4` selects logical cores 0, 2, and 4.
-- `10` selects logical core 10.
-- `0x0F` uses an explicit hexadecimal mask.
-- `mask:15` uses an explicit decimal mask.
-- Empty means all available cores.
+## How it works
 
-### Rule example
+```text
+rules.json ──► validate ──► match process ──► capture original state
+                                                      │
+                                                      ▼
+                                               apply exact rule
+                                                      │
+                  rule removed / focus changed / engine exits
+                                                      │
+                                                      ▼
+                                             restore original state
+```
+
+- The engine runs in the signed-in user's interactive session.
+- Configuration lives under `%LOCALAPPDATA%\WinAnanicy`.
+- Changes are applied only when the configured rule matches.
+- CPU priority, I/O priority, affinity, EcoQoS, and CPU rate state are captured
+  before modification and restored at each lifecycle boundary.
+- Configuration writes are atomic, validated, and backed up.
+- The application contains no telemetry and makes no network connections.
+
+`Disallowed` and `Keep Alive` intentionally affect process lifetime. Use them
+only with applications you trust; the editor prevents both from being enabled
+on the same rule.
+
+## Rule example
 
 ```json
 [
@@ -104,24 +135,24 @@ the editor prevents them from being enabled together.
 | `disallowed` | Terminate matching processes |
 | `keep_alive` | Restart the executable at `executable_path` with bounded backoff |
 
-### Build from source
+JSON-aware editors can use
+[`rules.schema.json`](schemas/rules.schema.json) and
+[`settings.schema.json`](schemas/settings.schema.json).
+
+## Build from source
 
 Requirements: Windows 10/11 x64, CMake 3.20+, a C++20 compiler, .NET 8 SDK,
-and Inno Setup 6 for the installer.
+and Inno Setup 6.
 
 ```powershell
 .\scripts\build-release.ps1
 ```
 
-The command builds and tests the C++ engine, publishes the self-contained WPF
-application, creates a portable ZIP and bilingual setup, and writes SHA-256
+The release script builds and tests the C++ engine, publishes the self-contained
+WPF application, creates Setup and Portable packages, and writes SHA-256
 checksums to `artifacts`.
 
-JSON-aware editors can use the bundled
-[`rules.schema.json`](schemas/rules.schema.json) and
-[`settings.schema.json`](schemas/settings.schema.json) definitions.
-
-For a development-only build:
+For a development build:
 
 ```powershell
 cmake -S . -B build -DBUILD_TESTING=ON
@@ -130,77 +161,40 @@ ctest --test-dir build -C Release --output-on-failure
 dotnet build .\gui\WinAnanicyGui.csproj -c Release
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and the
+public [roadmap](ROADMAP.md) before proposing a large change.
+
 ## Türkçe
 
-WinAnanicy; yerel C++ motoru ve modern WPF kontrol merkezi bulunan, hafif bir
-Windows süreç iyileştiricisidir. Kuralları yalnızca gerektiğinde uygular, gerçekten
-etkin olan değişiklikleri gösterir ve kural devreden çıktığında ya da motor
-durduğunda sürecin özgün durumunu geri yükler.
+WinAnanicy, Windows 10 ve 11 için açık kaynaklı ve geri alınabilir bir süreç
+kural motorudur. Yerel C++ motoru ile WPF kontrol merkezi; CPU/G/Ç önceliği,
+çekirdek seçimi, EcoQoS ve CPU sınırı gibi ayarları yalnızca kural eşleştiğinde
+uygular. Kural devreden çıktığında veya motor kapandığında sürecin özgün
+durumunu geri yükler.
 
-### Kurulum
+### Neden farklı?
 
-1. [Releases](https://github.com/misutesu-desu/win-ananicy/releases/latest)
-   sayfasından `WinAnanicy-1.0.0-Setup.exe` dosyasını indirin.
-2. Kurucuda Türkçe veya İngilizceyi seçin.
-3. “Optimizasyon motorunu Windows ile otomatik başlat” seçeneğini açık bırakın.
-4. **Süreçler** sayfasını açın, bir uygulama seçin ve **Kural ekle** düğmesine basın.
+- Yönetici izni ve ayrıcalıklı Windows servisi istemez.
+- Telemetri veya ağ bağlantısı içermez.
+- Gizli kayıt defteri ayarları ya da “tek tıkla FPS” iddiası kullanmaz.
+- Yapılan değişiklikleri canlı gösterir ve yaşam döngüsü sınırlarında geri alır.
+- Türkçe ve İngilizce arayüz, kurucu ve taşınabilir paket sunar.
 
-Kurulum kullanıcı bazlıdır ve yönetici izni gerektirmez. İleri düzey kullanıcılar
-için taşınabilir ZIP paketi de yayımlanır.
-
-### Öne çıkanlar
-
-- Canlı Genel Bakış, süreç tarayıcısı, kural düzenleyici, etkinlik günlüğü ve ayarlar.
-- Uygulama ve kurucuda eksiksiz Türkçe/İngilizce desteği.
-- Tek tıkla Oyun, Üretim, Arka Plan ve Sıkı Tasarruf profilleri.
-- CPU ve G/Ç önceliği, çekirdek seçimi, EcoQoS ve CPU oran sınırı.
-- Gerçek ön plan penceresine göre çalışan arka plan kuralları.
-- SmartTrim, sürekli yük sınırlaması, çoklu örnek dengeleme, engelleme ve
-  sınırlı yeniden denemeli Canlı Tut.
-- Canlı ayar yenileme, sıkı doğrulama, atomik kayıt, içe/dışa aktarma ve on yedek.
-- Yalnızca uygun bir kural etkinken devreye giren uyarlanabilir güç planı.
-- Bildirim alanı kontrolleri ve isteğe bağlı Windows ile başlangıç.
-- Servis yok, yönetici izni yok, telemetri yok, ağ bağlantısı yok.
-
-### Güvenlik modeli
-
-Motor, oturum açmış kullanıcının etkileşimli masaüstünde çalışır. Ayarlar
-`%LOCALAPPDATA%\WinAnanicy` altında tutulur; böylece kullanıcı tarafından
-değiştirilebilen hiçbir dosya `LocalSystem` servisi tarafından çalıştırılmaz.
-WinAnanicy CPU/G/Ç önceliğini, çekirdek seçimini, EcoQoS ve oran sınırını
-değiştirmeden önce kaydeder; kural kaldırıldığında, odak değiştiğinde, ayarlar
-yenilendiğinde ve motor düzgün kapandığında geri yükler.
-
-`Engelle` eşleşen süreci kapatır. `Canlı Tut`, süreç bulunamazsa belirtilen
-çalıştırılabilir dosyayı başlatır. Bu özellikleri yalnızca güvendiğiniz
-uygulamalarda kullanın; arayüz ikisinin aynı anda açılmasını engeller.
-
-### Çekirdek seçimi söz dizimi
-
-- `0,2,4`, mantıksal 0, 2 ve 4 numaralı çekirdekleri seçer.
-- `10`, mantıksal 10 numaralı çekirdeği seçer.
-- `0x0F`, açık bir onaltılık maske kullanır.
-- `mask:15`, açık bir ondalık maske kullanır.
-- Boş değer tüm kullanılabilir çekirdekleri kullanır.
-
-### Kaynaktan derleme
-
-Gereksinimler: Windows 10/11 x64, CMake 3.20+, C++20 derleyicisi, .NET 8 SDK
-ve kurucu için Inno Setup 6.
-
-```powershell
-.\scripts\build-release.ps1
-```
-
-Bu komut C++ motorunu derleyip test eder, bağımsız WPF uygulamasını yayımlar,
-taşınabilir ZIP ile çift dilli kurulumu üretir ve `artifacts` klasörüne SHA-256
-sağlamalarını yazar.
+Kurulum için
+[son sürümü indirin](https://github.com/misutesu-desu/win-ananicy/releases/latest),
+**Süreçler** sayfasından bir uygulama seçin ve **Kural ekle** düğmesini kullanın.
+Mevcut topluluk derlemesi dijital imzalı değildir; yalnızca resmî GitHub
+sürümünü kullanın ve
+[SHA-256 doğrulamasını](docs/VERIFY-DOWNLOADS.md) tamamlayın.
 
 ## Contributing
 
-Issues and pull requests are welcome. Security reports should follow
-[SECURITY.md](SECURITY.md). Every change must keep both English and Turkish
-resources complete and pass the Windows build workflow.
+Issues and pull requests are welcome. User-facing resources must remain complete
+in both English and Turkish, and behavior changes must include appropriate
+tests. Security reports belong in a private GitHub security advisory.
+
+If WinAnanicy is useful to you, starring the repository helps other Windows
+users discover it.
 
 ## License
 

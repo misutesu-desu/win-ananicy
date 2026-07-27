@@ -9,13 +9,15 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>WinAnanicy</AssemblyName>
     <RootNamespace>WinAnanicyGui</RootNamespace>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.0.1</Version>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
     <Product>WinAnanicy</Product>
     <Company>Abdullah Çafer (misutesu-desu)</Company>
     <Description>Smart, lightweight process optimization for Windows.</Description>
     <Authors>Abdullah Çafer (misutesu-desu)</Authors>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/misutesu-desu/win-ananicy</RepositoryUrl>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>..\assets\win-ananicy.ico</ApplicationIcon>
     <NoWarn>$(NoWarn);WFAC010</NoWarn>

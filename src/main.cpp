@@ -27,7 +27,7 @@
 #include <vector>
 
 #ifndef WINANANICY_VERSION
-#define WINANANICY_VERSION "1.0.0"
+#define WINANANICY_VERSION "1.0.1"
 #endif
 
 namespace {
