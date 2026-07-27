@@ -9,7 +9,7 @@
 #endif
 
 #define AppName "WinAnanicy"
-#define AppPublisher "WinAnanicy Contributors"
+#define AppPublisher "Abdullah Çafer (misutesu-desu)"
 #define AppUrl "https://github.com/misutesu-desu/win-ananicy"
 #define AppExeName "WinAnanicy.exe"
 #define EngineExeName "win-ananicy.exe"

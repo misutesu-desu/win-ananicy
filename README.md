@@ -204,4 +204,7 @@ resources complete and pass the Windows build workflow.
 
 ## License
 
-[MIT](LICENSE) © 2026 WinAnanicy Contributors
+Copyright © 2026 Abdullah Çafer (misutesu-desu).
+
+WinAnanicy is licensed under the
+[GNU General Public License v3.0 or later](LICENSE).

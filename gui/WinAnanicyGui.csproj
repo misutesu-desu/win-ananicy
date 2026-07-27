@@ -13,9 +13,9 @@
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
     <Product>WinAnanicy</Product>
-    <Company>WinAnanicy Contributors</Company>
+    <Company>Abdullah Çafer (misutesu-desu)</Company>
     <Description>Smart, lightweight process optimization for Windows.</Description>
-    <Authors>WinAnanicy Contributors</Authors>
+    <Authors>Abdullah Çafer (misutesu-desu)</Authors>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>..\assets\win-ananicy.ico</ApplicationIcon>
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
