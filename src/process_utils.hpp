@@ -5,40 +5,30 @@
 
 namespace ProcessUtils {
 
-// Attempts to enable SeDebugPrivilege and SeIncreaseBasePriorityPrivilege for this application.
 bool EnableRequiredPrivileges();
 
-// Sets CPU Priority class for the target process.
-bool SetCpuPriority(DWORD pid, const std::string& priorityClassStr);
-
-// Sets CPU Affinity mask for the target process (e.g., "0,1,2,3" -> Core 0 to 3).
-bool SetCpuAffinity(DWORD pid, const std::string& affinityStr);
-
-// Sets CPU Affinity mask directly.
+bool SetCpuPriority(DWORD pid, const std::string& priorityClass);
+bool SetCpuPriorityClass(DWORD pid, DWORD priorityClass);
+bool SetCpuAffinity(DWORD pid, const std::string& affinity);
 bool SetCpuAffinityMask(DWORD pid, DWORD_PTR affinityMask);
 
-// Sets I/O priority class for the target process via NtSetInformationProcess.
-bool SetIoPriority(DWORD pid, const std::string& ioPriorityStr);
+bool SetIoPriority(DWORD pid, const std::string& ioPriority);
+bool SetIoPriorityValue(DWORD pid, ULONG ioPriority);
+bool GetIoPriority(HANDLE process, ULONG& ioPriority);
 
-// Enables or disables EcoQoS (Efficiency Mode / E-Core Lock)
-bool SetProcessEcoQoS(HANDLE hProcess, bool enable);
+bool SetProcessEcoQoS(HANDLE process, bool enabled);
+bool GetProcessEcoQoS(HANDLE process, bool& enabled);
 
-// Trims the working set memory of the process
-bool TrimProcessMemory(HANDLE hProcess);
+bool TrimProcessMemory(HANDLE process);
 
-// Limits the CPU rate of the process using Job Objects
-bool LimitProcessCpuRate(HANDLE hProcess, DWORD limitPercentage);
+HANDLE CreateProcessCpuRateLimit(HANDLE process, DWORD percentage);
+bool DisableProcessCpuRateLimit(HANDLE job);
 
-// Sets system power scheme active by GUID
 bool SetActivePowerScheme(const GUID& schemeGuid);
-
-// Gets current active power scheme GUID
 bool GetActivePowerScheme(GUID& schemeGuid);
-
-// Programmatically creates and configures the custom "WinAnanicy Energy Optimizer" power plan.
 bool CreateAndSetupCustomPowerPlan();
-
-// Deletes the custom power plan from the Windows subsystem during cleanup/uninstall.
 bool DeleteCustomPowerPlan();
+
+bool TryParseAffinity(const std::string& text, DWORD_PTR& mask, std::string& error);
 
 } // namespace ProcessUtils

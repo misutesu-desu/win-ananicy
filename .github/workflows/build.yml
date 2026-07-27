@@ -1,0 +1,31 @@
+name: Build and test
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Configure C++ engine
+        run: cmake -S . -B build -A x64 -DBUILD_TESTING=ON
+      - name: Build C++ engine
+        run: cmake --build build --config Release --parallel
+      - name: Run C++ tests
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Restore WPF app
+        run: dotnet restore gui/WinAnanicyGui.csproj
+      - name: Build WPF app
+        run: dotnet build gui/WinAnanicyGui.csproj -c Release --no-restore
+      - name: Verify English and Turkish resources
+        shell: pwsh
+        run: ./scripts/verify-localization.ps1

@@ -1,0 +1,6 @@
+{
+  "power_plan_enabled": true,
+  "poll_interval_ms": 1000,
+  "smart_trim_cooldown_secs": 30,
+  "watchdog_max_retries": 5
+}

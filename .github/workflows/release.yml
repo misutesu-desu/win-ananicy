@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+      - name: Build release
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          ./scripts/build-release.ps1 -Version $version -Generator "Visual Studio 17 2022"
+      - name: Upload release artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/WinAnanicy-*-Setup.exe
+            artifacts/WinAnanicy-*-Portable.zip
+            artifacts/SHA256SUMS.txt

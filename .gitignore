@@ -4,6 +4,8 @@
 
 # --- Compilation & Build Folders ---
 build/
+build-*/
+artifacts/
 out/
 bin/
 obj/
@@ -56,6 +58,7 @@ project.assets.json
 # --- Program Outputs, Logs & Temporary Files ---
 *.log
 *.tmp
+ui-preview.png
 *.bak
 *.exe.recipe
 *.ilk

@@ -20,7 +20,7 @@ void Initialize(const std::wstring& logFilePath);
 // Logs a message with a specific log level.
 void Log(Level level, std::string_view message);
 
-// Convienence wrappers
+// Convenience wrappers
 void Debug(std::string_view message);
 void Info(std::string_view message);
 void Warn(std::string_view message);

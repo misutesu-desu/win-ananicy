@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/misutesu-desu/win-ananicy/schemas/rules.schema.json",
+  "title": "WinAnanicy process rules",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "process_name"
+    ],
+    "properties": {
+      "process_name": {
+        "type": "string",
+        "pattern": "^[^\\\\/]+\\.[eE][xX][eE]$"
+      },
+      "cpu_priority": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "Idle",
+          "Below Normal",
+          "Normal",
+          "Above Normal",
+          "High",
+          null
+        ]
+      },
+      "io_priority": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "Very Low",
+          "Low",
+          "Normal",
+          "High",
+          null
+        ]
+      },
+      "cpu_affinity": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "minLength": 1
+      },
+      "background_only": {
+        "type": "boolean"
+      },
+      "eco_qos": {
+        "type": "boolean"
+      },
+      "launcher": {
+        "type": "boolean"
+      },
+      "cpu_limit": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 99
+      },
+      "smart_trim_threshold_mb": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 32,
+        "maximum": 1048576
+      },
+      "cpu_throttle_trigger_pct": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 1,
+        "maximum": 100
+      },
+      "cpu_throttle_duration_secs": {
+        "type": [
+          "integer",
+          "null"
+        ],
+        "minimum": 1,
+        "maximum": 3600
+      },
+      "instance_balance": {
+        "type": "boolean"
+      },
+      "disallowed": {
+        "type": "boolean"
+      },
+      "keep_alive": {
+        "type": "boolean"
+      },
+      "executable_path": {
+        "type": "string"
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "keep_alive": {
+              "const": true
+            }
+          },
+          "required": [
+            "keep_alive"
+          ]
+        },
+        "then": {
+          "required": [
+            "executable_path"
+          ],
+          "properties": {
+            "executable_path": {
+              "pattern": "^[A-Za-z]:\\\\.*\\.[eE][xX][eE]$"
+            },
+            "disallowed": {
+              "not": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      {
+        "if": {
+          "required": [
+            "cpu_throttle_trigger_pct"
+          ],
+          "properties": {
+            "cpu_throttle_trigger_pct": {
+              "type": "integer"
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "cpu_throttle_duration_secs"
+          ],
+          "properties": {
+            "instance_balance": {
+              "not": {
+                "const": true
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

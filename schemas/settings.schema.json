@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/misutesu-desu/win-ananicy/schemas/settings.schema.json",
+  "title": "WinAnanicy engine settings",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "power_plan_enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "poll_interval_ms": {
+      "type": "integer",
+      "minimum": 250,
+      "maximum": 5000,
+      "default": 1000
+    },
+    "smart_trim_cooldown_secs": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 3600,
+      "default": 30
+    },
+    "watchdog_max_retries": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 20,
+      "default": 5
+    }
+  }
+}

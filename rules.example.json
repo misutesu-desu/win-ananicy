@@ -1,0 +1,36 @@
+[
+  {
+    "process_name": "example-game.exe",
+    "cpu_priority": "High",
+    "io_priority": "High",
+    "cpu_affinity": null,
+    "background_only": false,
+    "eco_qos": false,
+    "launcher": false,
+    "cpu_limit": 0,
+    "smart_trim_threshold_mb": null,
+    "cpu_throttle_trigger_pct": null,
+    "cpu_throttle_duration_secs": null,
+    "instance_balance": false,
+    "disallowed": false,
+    "keep_alive": false,
+    "executable_path": ""
+  },
+  {
+    "process_name": "example-background-app.exe",
+    "cpu_priority": "Below Normal",
+    "io_priority": "Low",
+    "cpu_affinity": "0,1",
+    "background_only": true,
+    "eco_qos": true,
+    "launcher": false,
+    "cpu_limit": 40,
+    "smart_trim_threshold_mb": 2048,
+    "cpu_throttle_trigger_pct": null,
+    "cpu_throttle_duration_secs": null,
+    "instance_balance": false,
+    "disallowed": false,
+    "keep_alive": false,
+    "executable_path": ""
+  }
+]

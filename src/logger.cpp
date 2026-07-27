@@ -4,6 +4,7 @@
 #include <iomanip>
 #include <sstream>
 #include <windows.h>
+#include <filesystem>
 
 namespace Logger {
 
@@ -44,7 +45,23 @@ void Initialize(const std::wstring& logFilePath) {
     std::lock_guard<std::mutex> lock(g_logMutex);
     if (g_initialized) return;
 
-    g_logFile.open(logFilePath, std::ios::out | std::ios::app);
+    const std::filesystem::path path(logFilePath);
+    try {
+        std::filesystem::create_directories(path.parent_path());
+        constexpr std::uintmax_t maxLogBytes = 5U * 1024U * 1024U;
+        if (std::filesystem::exists(path) &&
+            std::filesystem::file_size(path) >= maxLogBytes) {
+            const std::filesystem::path previous = path.wstring() + L".1";
+            std::error_code error;
+            std::filesystem::remove(previous, error);
+            error.clear();
+            std::filesystem::rename(path, previous, error);
+        }
+    } catch (...) {
+        // Console and debugger logging remain available.
+    }
+
+    g_logFile.open(path, std::ios::out | std::ios::app);
     g_initialized = g_logFile.is_open();
 }
 
